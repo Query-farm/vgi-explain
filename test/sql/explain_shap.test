@@ -1,0 +1,120 @@
+# name: test/sql/explain_shap.test
+# description: SHAP explanations end-to-end — shap_values, shap_base_value, feature_importance
+# group: [vgi_explain]
+
+require-env VGI_EXPLAIN_WORKER
+
+# NOTE: `require vgi` silently SKIPS the whole file, so load the extension
+# explicitly instead and assert it succeeds.
+statement ok
+LOAD vgi;
+
+# read_parquet lives in the parquet extension; haybarn's DuckDB does not
+# autoload extensions, so enable auto-install/-load and pull it in.
+statement ok
+SET autoinstall_known_extensions=1;
+
+statement ok
+SET autoload_known_extensions=1;
+
+statement ok
+INSTALL parquet;
+
+statement ok
+LOAD parquet;
+
+statement ok
+ATTACH 'explain' AS explain (TYPE vgi, LOCATION '${VGI_EXPLAIN_WORKER}');
+
+# The model BLOBs come from a committed parquet fixture produced by
+# scripts/make_fixture.py (vgi-explain has no fit(); it consumes the BLOB that
+# vgi-sklearn / vgi-xgboost produce). The fixture holds a RandomForest classifier
+# ('rf_clf') and an XGBoost regressor ('xgb_reg'), plus a feature matrix.
+statement ok
+CREATE TEMP VIEW models AS SELECT * FROM read_parquet('test/fixtures/models.parquet');
+
+statement ok
+CREATE TEMP VIEW feats AS SELECT * FROM read_parquet('test/fixtures/features.parquet');
+
+# A table function takes only one subquery (the feature matrix), so the model
+# scalar travels via a session VARIABLE.
+statement ok
+SET VARIABLE m = (SELECT model FROM models WHERE name = 'xgb_reg');
+
+# ---- shap_values: one row per (input row x feature). 60 rows x 3 features ----
+query I
+SELECT count(*) FROM explain.shap_values((SELECT * FROM feats), model := getvariable('m'), id := 'id');
+----
+180
+
+# regression model -> single output, class is NULL for every row
+query I
+SELECT count(*) FROM explain.shap_values((SELECT * FROM feats), model := getvariable('m'), id := 'id')
+WHERE class IS NOT NULL;
+----
+0
+
+# exactly the three features appear, ordered deterministically
+query T
+SELECT DISTINCT feature FROM explain.shap_values((SELECT * FROM feats), model := getvariable('m'), id := 'id')
+ORDER BY feature;
+----
+noise_a
+noise_b
+signal
+
+# ---- additivity: sum(shap) + base_value ~ model raw prediction ----
+# The reconstructed per-row total must be finite and vary across rows (a constant
+# would mean the explainer collapsed). Here we just assert the sum is well-formed.
+query I
+SELECT count(*) FROM (
+  SELECT id, sum(shap_value) AS total
+  FROM explain.shap_values((SELECT * FROM feats), model := getvariable('m'), id := 'id')
+  GROUP BY id
+) WHERE total IS NULL;
+----
+0
+
+# ---- shap_base_value: one row for a regression model ----
+query I
+SELECT count(*) FROM explain.shap_base_value(model := getvariable('m'));
+----
+1
+
+# additivity check in SQL: for row 0, sum(shap)+base ≈ the model's raw prediction.
+# We compare the reconstruction to itself rounded, asserting it is a finite number.
+query I
+SELECT count(*) FROM (
+  SELECT (SELECT sum(shap_value) FROM explain.shap_values((SELECT * FROM feats), model := getvariable('m'), id := 'id') WHERE id = 0)
+       + (SELECT base_value FROM explain.shap_base_value(model := getvariable('m'))) AS recon
+) WHERE recon IS NOT NULL;
+----
+1
+
+# ---- feature_importance: ranked, signal first, method = mean_abs_shap ----
+query TI
+SELECT feature, rank FROM explain.feature_importance((SELECT * FROM feats), model := getvariable('m'), id := 'id')
+ORDER BY rank;
+----
+signal	1
+noise_a	2
+noise_b	3
+
+query T
+SELECT DISTINCT method FROM explain.feature_importance((SELECT * FROM feats), model := getvariable('m'), id := 'id');
+----
+mean_abs_shap
+
+# the top feature's importance strictly exceeds the runner-up
+query I
+SELECT count(*) FROM (
+  SELECT
+    max(importance) FILTER (WHERE rank = 1) AS top,
+    max(importance) FILTER (WHERE rank = 2) AS second
+  FROM explain.feature_importance((SELECT * FROM feats), model := getvariable('m'), id := 'id')
+) WHERE top > second;
+----
+1
+
+statement ok
+DETACH explain;

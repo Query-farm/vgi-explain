@@ -1,0 +1,83 @@
+# name: test/sql/explain_classifier.test
+# description: SHAP for a classifier (per-class) + robustness to an invalid model
+# group: [vgi_explain]
+
+require-env VGI_EXPLAIN_WORKER
+
+statement ok
+LOAD vgi;
+
+statement ok
+SET autoinstall_known_extensions=1;
+
+statement ok
+SET autoload_known_extensions=1;
+
+statement ok
+INSTALL parquet;
+
+statement ok
+LOAD parquet;
+
+statement ok
+ATTACH 'explain' AS explain (TYPE vgi, LOCATION '${VGI_EXPLAIN_WORKER}');
+
+statement ok
+CREATE TEMP VIEW models AS SELECT * FROM read_parquet('test/fixtures/models.parquet');
+
+statement ok
+CREATE TEMP VIEW feats AS SELECT * FROM read_parquet('test/fixtures/features.parquet');
+
+statement ok
+SET VARIABLE c = (SELECT model FROM models WHERE name = 'rf_clf');
+
+# ---- a binary tree classifier explains per class: 60 rows x 3 feats x 2 classes ----
+query I
+SELECT count(*) FROM explain.shap_values((SELECT * FROM feats), model := getvariable('c'), id := 'id');
+----
+360
+
+# the class column is populated for a classifier
+query T
+SELECT DISTINCT class FROM explain.shap_values((SELECT * FROM feats), model := getvariable('c'), id := 'id')
+ORDER BY class;
+----
+0
+1
+
+# feature_importance still ranks the informative feature first
+query TI
+SELECT feature, rank FROM explain.feature_importance((SELECT * FROM feats), model := getvariable('c'), id := 'id')
+ORDER BY rank
+LIMIT 1;
+----
+signal	1
+
+# shap_base_value for a binary tree classifier: one row per class
+query I
+SELECT count(*) FROM explain.shap_base_value(model := getvariable('c'));
+----
+2
+
+# ---- robustness: a garbage model BLOB yields a clear error, never a crash ----
+statement ok
+SET VARIABLE bad = 'not-a-model'::BLOB;
+
+statement error
+SELECT * FROM explain.shap_values((SELECT * FROM feats), model := getvariable('bad'), id := 'id');
+----
+invalid model
+
+statement error
+SELECT * FROM explain.shap_base_value(model := getvariable('bad'));
+----
+invalid model
+
+# ---- missing model argument -> clear error ----
+statement error
+SELECT * FROM explain.shap_base_value();
+----
+requires 'model'
+
+statement ok
+DETACH explain;

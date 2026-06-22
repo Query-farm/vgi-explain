@@ -1,0 +1,111 @@
+[project]
+name = "vgi-explain"
+version = "0.1.0"
+description = "A VGI (Vector Gateway Interface) worker computing SHAP explanations for scikit-learn / XGBoost models as DuckDB/SQL functions"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Rusty Conover", email = "rusty@query.farm" }]
+maintainers = [{ name = "Query Farm LLC", email = "hello@query.farm" }]
+keywords = ["vgi", "duckdb", "arrow", "shap", "explainability", "scikit-learn", "xgboost", "sql"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Topic :: Database :: Database Engines/Servers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.13"
+dependencies = [
+    "vgi-python[http]>=0.8.1",
+    "shap>=0.46",
+    "scikit-learn>=1.5",
+    "xgboost>=2.0",
+    "skops>=0.11",
+    "numpy",
+    # shap pulls numba (-> llvmlite); pin to versions with Python 3.13 wheels so
+    # the resolver does not fall back to ancient llvmlite 0.36 (which won't build
+    # on 3.13).
+    "numba>=0.60",
+    "llvmlite>=0.43",
+]
+
+# Console scripts. `vgi-explain` runs the stdio transport (DuckDB spawns it);
+# `vgi-explain-http` runs the HTTP server.
+[project.scripts]
+vgi-explain = "vgi_explain.worker:main"
+vgi-explain-http = "vgi_explain.worker:main_http"
+
+[project.urls]
+Homepage = "https://query.farm"
+Repository = "https://github.com/Query-farm/vgi-explain"
+Issues = "https://github.com/Query-farm/vgi-explain/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vgi_explain"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "vgi_explain/",
+    "explain_worker.py",
+    "serve.py",
+    "conftest.py",
+    "tests/",
+    "test/",
+    "scripts/",
+    "README.md",
+    "CLAUDE.md",
+    "LICENSE",
+]
+
+[tool.uv.sources]
+vgi-python = { path = "../vgi-python" }
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pyarrow",
+    "ruff",
+    "mypy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pyarrow",
+    "ruff",
+    "mypy",
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E741",  # ambiguous variable name (x, y are conventional in ML)
+    "B008",  # function call in argument default (Arg(...) defaults are intentional)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402"]
+"scripts/*" = ["E402"]
+
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
+warn_unused_ignores = false
+check_untyped_defs = true

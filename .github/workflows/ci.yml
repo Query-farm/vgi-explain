@@ -136,4 +136,4 @@ jobs:
         run: uv run --no-sync mypy vgi_explain/
 
       - name: Docstring lint (pydoclint)
-        run: uv run --no-sync pydoclint vgi_explain/
+        run: uvx pydoclint --config pyproject.toml vgi_explain/

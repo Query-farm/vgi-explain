@@ -32,18 +32,14 @@ def _bind(func_cls: type, *, named: dict[str, pa.Scalar], input_schema: pa.Schem
 
 
 def test_shap_base_value_regression_one_row() -> None:
-    table = invoke_table_function(
-        ShapBaseValue, named={"model": pa.scalar(xgb_regressor_blob(), type=pa.binary())}
-    )
+    table = invoke_table_function(ShapBaseValue, named={"model": pa.scalar(xgb_regressor_blob(), type=pa.binary())})
     assert table.num_rows == 1
     assert table.column("class").to_pylist() == [None]
     assert np.isfinite(table.column("base_value").to_pylist()[0])
 
 
 def test_shap_base_value_classifier_per_class() -> None:
-    table = invoke_table_function(
-        ShapBaseValue, named={"model": pa.scalar(rf_classifier_blob(), type=pa.binary())}
-    )
+    table = invoke_table_function(ShapBaseValue, named={"model": pa.scalar(rf_classifier_blob(), type=pa.binary())})
     # A tree classifier yields a base value per class; the class column is labelled.
     assert table.num_rows >= 1
     base = table.column("base_value").to_pylist()

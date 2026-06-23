@@ -1,21 +1,13 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "vgi-python[http,oauth]",
-#     "vgi-rpc[sentry]",
+#     "vgi-python[http,oauth]>=0.8.3",
 #     "shap>=0.46",
 #     "scikit-learn>=1.5",
 #     "xgboost>=2.0",
 #     "skops>=0.11",
 #     "numpy",
 # ]
-#
-# [tool.uv.sources]
-# vgi-python = { path = "../vgi-python" }
-# vgi-rpc = { path = "../vgi-rpc" }
-#
-# [tool.uv]
-# override-dependencies = ["vgi-rpc>=0.20.3"]
 # ///
 """HTTP entry shim for the SHAP-explain VGI worker (used by container deploys).
 

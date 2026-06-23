@@ -23,8 +23,14 @@ def test_pack_unpack_roundtrip() -> None:
     x = np.array([[0.0, 0.0], [1.0, 1.0]])
     est = RandomForestClassifier(n_estimators=5, random_state=0).fit(x, [0, 1])
     meta = ModelMetadata(
-        name="m", estimator="random_forest_classifier", task="classification",
-        target="y", feature_names=["a", "b"], classes=[0, 1], n_features=2, n_samples=2,
+        name="m",
+        estimator="random_forest_classifier",
+        task="classification",
+        target="y",
+        feature_names=["a", "b"],
+        classes=[0, 1],
+        n_features=2,
+        n_samples=2,
     )
     blob = pack_model(est, meta)
 

@@ -61,9 +61,7 @@ def _skops_loads(data: bytes) -> Any:
         raise InvalidModelBlobError(f"not a valid model BLOB: {exc}") from exc
     disallowed = [t for t in untrusted if not t.startswith(_TRUSTED_PREFIXES)]
     if disallowed:
-        raise UntrustedModelError(
-            f"refusing to load model containing untrusted type(s): {', '.join(disallowed)}"
-        )
+        raise UntrustedModelError(f"refusing to load model containing untrusted type(s): {', '.join(disallowed)}")
     try:
         return sio.loads(data, trusted=untrusted)
     except Exception as exc:  # noqa: BLE001

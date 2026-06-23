@@ -1033,7 +1033,7 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.5" },
     { name = "shap", specifier = ">=0.46" },
     { name = "skops", specifier = ">=0.11" },
-    { name = "vgi-python", extras = ["http"], directory = "../vgi-python" },
+    { name = "vgi-python", extras = ["http"], specifier = ">=0.8.3" },
     { name = "xgboost", specifier = ">=2.0" },
 ]
 provides-extras = ["dev"]
@@ -1049,7 +1049,7 @@ dev = [
 [[package]]
 name = "vgi-python"
 version = "0.8.3"
-source = { directory = "../vgi-python" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "httpx" },
@@ -1058,64 +1058,14 @@ dependencies = [
     { name = "typer" },
     { name = "vgi-rpc" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/68/b1/14d9633128b6825150556ffa86004a4d46ec7b8e2df3685e35e2accdf9ff/vgi_python-0.8.3.tar.gz", hash = "sha256:45d53ee03789c443b3ae4ea2a1f0162dbce0d1cca2894ea06aa14eb754d65b42", size = 3242180, upload-time = "2026-06-23T20:11:31.205Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/af/48/5384a305a6924e4031c98ec404e7e4cf696cd936d3ed4ef012172e013037/vgi_python-0.8.3-py3-none-any.whl", hash = "sha256:18d83ca1243e7521a4235a78bf2b54b77ae33eacb5f4f5d1e87f585f3b35c85c", size = 586297, upload-time = "2026-06-23T20:11:29.302Z" },
+]
 
 [package.optional-dependencies]
 http = [
     { name = "vgi-rpc", extra = ["http"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "azure-identity", marker = "extra == 'azure'", specifier = ">=1.16.0" },
-    { name = "click" },
-    { name = "duckdb", marker = "extra == 'dev'", specifier = ">=1.5.3" },
-    { name = "duckdb", marker = "extra == 'duckdb'", specifier = ">=1.5.3" },
-    { name = "haybarn", marker = "extra == 'haybarn'", specifier = ">=1.5.3rc10" },
-    { name = "httpx", specifier = ">=0.24" },
-    { name = "mypy", marker = "extra == 'dev'" },
-    { name = "numpy", marker = "extra == 'test-fixtures'", specifier = ">=2.4.1" },
-    { name = "platformdirs" },
-    { name = "pyarrow" },
-    { name = "pyarrow-stubs", marker = "extra == 'dev'" },
-    { name = "pydoclint", marker = "extra == 'dev'" },
-    { name = "pymssql", marker = "extra == 'azure'", specifier = ">=2.3.0" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-cov", marker = "extra == 'dev'" },
-    { name = "pytest-examples", marker = "extra == 'dev'" },
-    { name = "pytest-ruff", marker = "extra == 'dev'" },
-    { name = "pytest-xdist", marker = "extra == 'dev'" },
-    { name = "ruff", marker = "extra == 'dev'" },
-    { name = "sqlglot", marker = "extra == 'transactor'" },
-    { name = "typer", specifier = ">=0.9" },
-    { name = "vgi-fixtures", marker = "extra == 'fixtures'", editable = "../vgi-python/packages/vgi-fixtures" },
-    { name = "vgi-python", extras = ["test-fixtures"], marker = "extra == 'test-fixtures-writable'" },
-    { name = "vgi-python", extras = ["test-fixtures", "test-fixtures-writable", "http", "oauth", "otel", "sentry", "azure"], marker = "extra == 'dev'" },
-    { name = "vgi-python", extras = ["transactor"], marker = "extra == 'test-fixtures-writable'" },
-    { name = "vgi-rpc", specifier = ">=0.20.5" },
-    { name = "vgi-rpc", extras = ["conformance", "external", "http", "oauth", "otel", "sentry"], marker = "extra == 'dev'" },
-    { name = "vgi-rpc", extras = ["http"], marker = "extra == 'http'" },
-    { name = "vgi-rpc", extras = ["oauth"], marker = "extra == 'oauth'" },
-    { name = "vgi-rpc", extras = ["otel"], marker = "extra == 'otel'" },
-    { name = "vgi-rpc", extras = ["sentry"], marker = "extra == 'sentry'" },
-]
-provides-extras = ["haybarn", "duckdb", "http", "oauth", "otel", "sentry", "azure", "test-fixtures", "transactor", "fixtures", "test-fixtures-writable", "dev"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "lxml", specifier = ">=6.0.2" },
-    { name = "pytest-timeout", specifier = ">=2.4.0" },
-    { name = "ty", specifier = ">=0.0.8" },
-    { name = "vgi-fixtures", editable = "../vgi-python/packages/vgi-fixtures" },
-]
-docs = [
-    { name = "mkdocs", specifier = ">=1.6" },
-    { name = "mkdocs-d2-plugin", specifier = ">=1.4" },
-    { name = "mkdocs-material", specifier = ">=9.5" },
-    { name = "mkdocs-section-index", specifier = ">=0.3" },
-    { name = "mkdocstrings", extras = ["python"], specifier = ">=0.27" },
-    { name = "pygments", specifier = ">=2.20" },
-    { name = "pymdown-extensions", specifier = ">=10.21.2" },
-    { name = "ruff", specifier = ">=0.1" },
 ]
 
 [[package]]

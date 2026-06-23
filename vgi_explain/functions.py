@@ -175,9 +175,7 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
 
         if x.shape[0] == 0:
             out.emit(
-                pa.RecordBatch.from_pydict(
-                    {n: [] for n in params.output_schema.names}, schema=params.output_schema
-                )
+                pa.RecordBatch.from_pydict({n: [] for n in params.output_schema.names}, schema=params.output_schema)
             )
             return
 

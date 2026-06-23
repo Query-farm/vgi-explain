@@ -4,7 +4,9 @@
 
 <p align="center"><em>A <a href="https://query.farm">Query.Farm</a> VGI worker for DuckDB.</em></p>
 
-# vgi-explain
+# Explain ML Predictions with SHAP in DuckDB
+
+> **vgi-explain** · a [Query.Farm](https://query.farm) VGI worker · powered by SHAP
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 

@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="docs/vgi-logo.png" alt="Vector Gateway Interface (VGI)" width="320">
+</p>
+
+<p align="center"><em>A <a href="https://query.farm">Query.Farm</a> VGI worker for DuckDB.</em></p>
+
 # vgi-explain
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -114,3 +120,12 @@ make fixture                        # regenerate the committed model-BLOB fixtur
 - [XGBoost](https://github.com/dmlc/xgboost): Apache-2.0.
 - [skops](https://github.com/skops-dev/skops): MIT.
 - [numpy](https://numpy.org/): BSD-3-Clause.
+
+---
+
+## Authorship & License
+
+Written by [Query.Farm](https://query.farm) — every VGI worker is designed and built by Query.Farm.
+
+Copyright 2026 Query Farm LLC - https://query.farm
+

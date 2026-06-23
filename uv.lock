@@ -1048,7 +1048,7 @@ dev = [
 
 [[package]]
 name = "vgi-python"
-version = "0.8.2"
+version = "0.8.3"
 source = { directory = "../vgi-python" }
 dependencies = [
     { name = "click" },

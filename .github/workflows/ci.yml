@@ -31,6 +31,12 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
 
+      # xgboost's prebuilt macOS wheel dlopen's libomp at runtime; the runner
+      # image does not ship it. Install it so `import xgboost` works.
+      - name: Install OpenMP runtime (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libomp
+
       - name: Install dependencies
         run: uv sync --extra dev --python ${{ matrix.python-version }}
 
@@ -74,6 +80,12 @@ jobs:
 
       - name: Set up Python 3.13
         run: uv python install 3.13
+
+      # xgboost's prebuilt macOS wheel dlopen's libomp at runtime; the runner
+      # image does not ship it. Install it so the worker can load XGBoost models.
+      - name: Install OpenMP runtime (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libomp
 
       - name: Install the worker (from the lockfile)
         run: uv sync --frozen --extra dev --python 3.13

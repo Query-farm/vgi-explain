@@ -50,7 +50,8 @@ class InvalidModelBlobError(ValueError):
 
 
 def _skops_dumps(estimator: Any) -> bytes:
-    return sio.dumps(estimator)
+    data: bytes = sio.dumps(estimator)
+    return data
 
 
 def _skops_loads(data: bytes) -> Any:
@@ -86,10 +87,12 @@ class ModelMetadata:
     created_at: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Return the metadata as a plain JSON-serializable dict."""
         return asdict(self)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> ModelMetadata:
+        """Build metadata from a dict, ignoring unknown keys (forward-compatible)."""
         known = {f for f in cls.__dataclass_fields__}  # noqa: C416
         return cls(**{k: v for k, v in d.items() if k in known})
 

@@ -1,5 +1,6 @@
-"""SHAP model explanations as DuckDB/SQL functions, for models fitted by sibling
-VGI workers (vgi-sklearn, vgi-xgboost).
+"""SHAP model explanations as DuckDB/SQL functions.
+
+For models fitted by sibling VGI workers (vgi-sklearn, vgi-xgboost).
 
 vgi-explain does not train models; it *interprets* the self-contained model BLOB
 those workers produce. The implementation is split so each module stays focused:

@@ -31,7 +31,7 @@ import pyarrow as pa
 from vgi.arguments import Arg, TableInput
 from vgi.invocation import BindResponse
 from vgi.metadata import FunctionExample
-from vgi.table_buffering_function import OutputCollector, TableBufferingParams
+from vgi.table_buffering_function import TableBufferingParams
 from vgi.table_function import (
     BindParams,
     ProcessParams,
@@ -40,8 +40,9 @@ from vgi.table_function import (
     bind_fixed_schema,
     init_single_worker,
 )
-from vgi.table_in_out_function import OutputCollector as InOutCollector
 from vgi.table_in_out_function import TableInOutGenerator
+from vgi_rpc.rpc import OutputCollector
+from vgi_rpc.rpc import OutputCollector as InOutCollector
 
 from .buffering import DrainState, SinkBuffer, input_schema_of
 from .explain import compute_shap, mean_abs_importance, shap_long
@@ -88,6 +89,8 @@ def _load_model_or_raise(blob: bytes) -> tuple[Any, ModelMetadata]:
 
 @dataclass(slots=True, frozen=True)
 class ShapValuesArgs:
+    """Arguments for ``shap_values``: feature relation, model BLOB, optional id."""
+
     data: Annotated[TableInput, Arg(0, doc="Feature relation (must contain the model's feature columns).")]
     model: Annotated[bytes, Arg("model", default=b"", doc="A model BLOB (as produced by vgi-sklearn / vgi-xgboost).")]
     id: Annotated[str, Arg("id", default="", doc="Optional id column to carry through (excluded from features).")]
@@ -97,9 +100,13 @@ _SHAP_CACHE: dict[bytes, tuple[Any, ModelMetadata]] = {}
 
 
 class ShapValues(TableInOutGenerator[ShapValuesArgs]):
+    """Stream a feature relation through SHAP, emitting long-format contributions."""
+
     FunctionArguments: ClassVar[type] = ShapValuesArgs
 
     class Meta:
+        """SQL-facing metadata for ``shap_values``."""
+
         name = "shap_values"
         description = "Per-row, per-feature SHAP contributions in long format (one row per row x feature [x class])"
         categories = ["explainability", "shap", "inference"]
@@ -116,6 +123,7 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
 
     @classmethod
     def on_bind(cls, params: BindParams[ShapValuesArgs]) -> BindResponse:
+        """Validate the model/feature columns and return the long-format output schema."""
         a = params.args
         if not a.model:
             raise ValueError("shap_values requires 'model' (a model BLOB, e.g. model := getvariable('m'))")
@@ -165,6 +173,7 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
         batch: pa.RecordBatch,
         out: InOutCollector,
     ) -> None:
+        """Compute and emit SHAP contributions for one input batch."""
         a = params.args
         estimator, meta = cls._model(params)
         assert params.init_call is not None
@@ -200,6 +209,8 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
 
 @dataclass(slots=True, frozen=True)
 class ShapBaseValueArgs:
+    """Arguments for ``shap_base_value``: just the model BLOB."""
+
     model: Annotated[bytes, Arg("model", default=b"", doc="A model BLOB (as produced by vgi-sklearn / vgi-xgboost).")]
 
 
@@ -214,9 +225,13 @@ _BASE_SCHEMA = pa.schema(
 @init_single_worker
 @bind_fixed_schema
 class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
+    """Source function emitting a model's SHAP base value, one row per class."""
+
     FIXED_SCHEMA: ClassVar[pa.Schema] = _BASE_SCHEMA
 
     class Meta:
+        """SQL-facing metadata for ``shap_base_value``."""
+
         name = "shap_base_value"
         description = "The SHAP base (expected) value of a model -- one row, or one row per class"
         categories = ["explainability", "shap"]
@@ -229,6 +244,7 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
 
     @classmethod
     def on_bind(cls, params: BindParams[ShapBaseValueArgs]) -> BindResponse:
+        """Validate the model BLOB and return the fixed base-value schema."""
         if not params.args.model:
             raise ValueError("shap_base_value requires 'model' (a model BLOB, e.g. model := getvariable('m'))")
         _load_meta_or_raise(params.args.model)
@@ -236,10 +252,12 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
 
     @classmethod
     def cardinality(cls, params: BindParams[ShapBaseValueArgs]) -> TableCardinality:
+        """Estimate the output cardinality (one row, or one per class)."""
         return TableCardinality(estimate=1, max=1000)
 
     @classmethod
     def process(cls, params: ProcessParams[ShapBaseValueArgs], state: None, out: OutputCollector) -> None:
+        """Compute and emit the model's expected (base) value per class."""
         estimator, meta = _load_model_or_raise(params.args.model)
         # The base value comes from the explainer; SHAP needs a tiny background
         # sample, which the model BLOB does not carry. Synthesize one zero-row so
@@ -270,6 +288,8 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
 
 @dataclass(slots=True, frozen=True)
 class FeatureImportanceArgs:
+    """Arguments for ``feature_importance``: feature relation, model BLOB, optional id."""
+
     data: Annotated[TableInput, Arg(0, doc="Feature relation to average SHAP magnitudes over.")]
     model: Annotated[bytes, Arg("model", default=b"", doc="A model BLOB (as produced by vgi-sklearn / vgi-xgboost).")]
     id: Annotated[str, Arg("id", default="", doc="Optional id column to exclude from features.")]
@@ -310,9 +330,13 @@ def _native_importance(estimator: Any, feature_names: list[str]) -> list[tuple[s
 
 
 class FeatureImportance(SinkBuffer[FeatureImportanceArgs, DrainState]):
+    """Buffering function: rank features by mean(|SHAP|) over the relation."""
+
     FunctionArguments: ClassVar[type] = FeatureImportanceArgs
 
     class Meta:
+        """SQL-facing metadata for ``feature_importance``."""
+
         name = "feature_importance"
         description = "Global feature importance: mean(|SHAP|) over the relation (or native importances if empty)"
         categories = ["explainability", "shap"]
@@ -328,6 +352,7 @@ class FeatureImportance(SinkBuffer[FeatureImportanceArgs, DrainState]):
 
     @classmethod
     def on_bind(cls, params: BindParams[FeatureImportanceArgs]) -> BindResponse:
+        """Validate the model/feature columns and return the importance schema."""
         a = params.args
         if not a.model:
             raise ValueError("feature_importance requires 'model' (a model BLOB, e.g. model := getvariable('m'))")
@@ -351,6 +376,7 @@ class FeatureImportance(SinkBuffer[FeatureImportanceArgs, DrainState]):
     def initial_finalize_state(
         cls, finalize_state_id: bytes, params: TableBufferingParams[FeatureImportanceArgs]
     ) -> DrainState:
+        """Start each finalize stream with a fresh (not-yet-emitted) cursor."""
         return DrainState()
 
     @classmethod
@@ -361,6 +387,7 @@ class FeatureImportance(SinkBuffer[FeatureImportanceArgs, DrainState]):
         state: DrainState,
         out: OutputCollector,
     ) -> None:
+        """Emit ranked feature importances once (mean(|SHAP|), or native if empty)."""
         if state.done:
             out.finish()
             return

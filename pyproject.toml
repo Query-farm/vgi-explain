@@ -72,6 +72,7 @@ dev = [
     "pyarrow",
     "ruff",
     "mypy",
+    "pydoclint",
 ]
 
 [project.optional-dependencies]
@@ -80,6 +81,7 @@ dev = [
     "pyarrow",
     "ruff",
     "mypy",
+    "pydoclint",
 ]
 
 [tool.pytest.ini_options]
@@ -91,18 +93,40 @@ line-length = 120
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+select = ["E", "F", "I", "UP", "B", "SIM", "D"]
 ignore = [
     "E741",  # ambiguous variable name (x, y are conventional in ML)
     "B008",  # function call in argument default (Arg(...) defaults are intentional)
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
 "tests/*" = ["E402"]
 "scripts/*" = ["E402"]
 
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pydoclint]
+style = "google"
+arg_type_hints_in_docstring = false
+check_return_types = false
+check_yield_types = false
+check_class_attributes = true
+skip_checking_raises = true
+allow_init_docstring = true
+
 [tool.mypy]
 python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+# Genuinely untyped third-party libs imported (directly or transitively) by the
+# worker. shap and skops are imported directly; numba/llvmlite arrive via shap.
+module = ["shap.*", "skops.*", "numba.*", "llvmlite.*"]
 ignore_missing_imports = true
-warn_unused_ignores = false
-check_untyped_defs = true

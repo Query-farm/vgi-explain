@@ -54,6 +54,7 @@ class ExplainCatalog(ReadOnlyCatalogInterface):
     catalog_name = _EXPLAIN_CATALOG.name
 
     def catalogs(self) -> list[CatalogInfo]:
+        """Advertise the explain catalog and its data/implementation versions."""
         return [
             CatalogInfo(
                 name=self._effective_catalog_name,
@@ -64,6 +65,7 @@ class ExplainCatalog(ReadOnlyCatalogInterface):
         ]
 
     def catalog_attach(self, **kwargs: Any) -> CatalogAttachResult:
+        """Resolve ATTACH, stamping the data and implementation versions."""
         result = super().catalog_attach(**kwargs)
         return dataclasses.replace(
             result,

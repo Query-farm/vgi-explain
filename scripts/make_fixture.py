@@ -68,6 +68,7 @@ def _meta(name: str, estimator: str, task: str, classes: list[int] | None) -> Mo
 
 
 def main() -> None:
+    """Train tiny RF + XGB models and write the committed model-BLOB fixture."""
     _FIXDIR.mkdir(parents=True, exist_ok=True)
     x, y_clf, ids = _dataset()
 

@@ -165,6 +165,11 @@ def shap_long(result: ShapResult, ids: list[Any], feature_names: list[str]) -> d
     Emits one row per (input row x feature x class). For single-output models the
     ``class`` column is NULL.
 
+    Args:
+        result: The normalized SHAP result to flatten.
+        ids: Per-row passthrough identifiers (falls back to the row index if empty).
+        feature_names: Feature column names, aligned to the result's feature axis.
+
     Returns:
         Dict of column-name -> list, with keys ``id`` (the passthrough), ``feature``,
         ``class``, and ``shap_value``.

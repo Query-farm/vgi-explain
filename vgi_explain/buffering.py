@@ -26,15 +26,21 @@ class DrainState(ArrowSerializableDataclass):
 
 
 def serialize_batch(batch: pa.RecordBatch) -> bytes:
+    """Serialize one Arrow record batch to a self-describing IPC stream."""
     sink = pa.BufferOutputStream()
-    with pa.ipc.new_stream(sink, batch.schema) as writer:
+    # pyarrow's bundled stubs leave new_stream untyped.
+    with pa.ipc.new_stream(sink, batch.schema) as writer:  # type: ignore[no-untyped-call]
         writer.write_batch(batch)
-    return sink.getvalue().to_pybytes()
+    data: bytes = sink.getvalue().to_pybytes()
+    return data
 
 
 def deserialize_batches(value: bytes) -> list[pa.RecordBatch]:
-    reader = pa.ipc.open_stream(pa.BufferReader(value))
-    return reader.read_all().to_batches()
+    """Read back the record batches written by :func:`serialize_batch`."""
+    # pyarrow's bundled stubs leave open_stream untyped.
+    reader = pa.ipc.open_stream(pa.BufferReader(value))  # type: ignore[no-untyped-call]
+    batches: list[pa.RecordBatch] = reader.read_all().to_batches()
+    return batches
 
 
 class SinkBuffer[TArgs, TState](TableBufferingFunction[TArgs, TState]):
@@ -42,16 +48,19 @@ class SinkBuffer[TArgs, TState](TableBufferingFunction[TArgs, TState]):
 
     @classmethod
     def process(cls, batch: pa.RecordBatch, params: TableBufferingParams[TArgs]) -> bytes:
+        """Buffer one input batch under the single shared key."""
         if batch.num_rows:
             params.storage.state_append(_DATA_KEY, b"", serialize_batch(batch))
         return params.execution_id
 
     @classmethod
     def combine(cls, state_ids: list[bytes], params: TableBufferingParams[TArgs]) -> list[bytes]:
+        """Collapse all partial states into the single execution bucket."""
         return [params.execution_id]
 
     @classmethod
     def buffered_table(cls, params: TableBufferingParams[TArgs], input_schema: pa.Schema) -> pa.Table | None:
+        """Reassemble every buffered batch into one table (None if empty)."""
         batches: list[pa.RecordBatch] = []
         for _sid, value in params.storage.state_log_scan(_DATA_KEY, b""):
             batches.extend(deserialize_batches(value))

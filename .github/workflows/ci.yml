@@ -60,11 +60,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   integration:
-    name: End-to-end SQL on ${{ matrix.os }}
+    name: SQL E2E (${{ matrix.transport }}) on ${{ matrix.os }}
     needs: resolve-haybarn
     strategy:
       fail-fast: false
       matrix:
+        # Run the SAME sqllogictest suite over every VGI transport. The vgi
+        # extension picks the transport from the ATTACH LOCATION string that
+        # run-integration.sh builds per $TRANSPORT:
+        #   subprocess : `.venv/bin/vgi-explain`     (stdio; extension spawns it)
+        #   http       : `http://127.0.0.1:<port>`   (worker booted with --http)
+        #   unix       : `unix://<sock>`             (worker booted with --unix)
+        os: [ubuntu-latest, macos-latest]
+        transport: [subprocess, http, unix]
         include:
           - { os: ubuntu-latest, asset: haybarn_unittest-linux-amd64.zip }
           - { os: macos-latest,  asset: haybarn_unittest-osx-arm64.zip }
@@ -88,6 +96,10 @@ jobs:
         run: brew install libomp
 
       - name: Install the worker (from the lockfile)
+        # waitress (needed to serve `--http`) is pulled in transitively by the
+        # main `vgi-python[http]` dependency — vgi-explain has no separate `http`
+        # extra — so a plain `--extra dev` sync already installs it. The `dev`
+        # extra brings pyarrow (the worker imports it).
         run: uv sync --frozen --extra dev --python 3.13
 
       - name: Download haybarn-unittest
@@ -106,13 +118,17 @@ jobs:
           # Absolute paths: run-integration.sh cd's into a staging dir before
           # invoking the runner, so relative paths would not resolve. The worker
           # is the installed `vgi-explain` console script in the project venv.
+          # VGI_EXPLAIN_WORKER is used directly as the stdio LOCATION for
+          # subprocess, and as the process the harness boots for --http / --unix.
           UNITTEST="$PWD/$(find hb -name 'haybarn-unittest' -type f | head -1)"
           chmod +x "$UNITTEST"
           echo "HAYBARN_UNITTEST=$UNITTEST" >> "$GITHUB_ENV"
           echo "VGI_EXPLAIN_WORKER=$PWD/.venv/bin/vgi-explain" >> "$GITHUB_ENV"
 
-      - name: Run extension integration suite
+      - name: Run extension integration suite (${{ matrix.transport }})
         run: ci/run-integration.sh
+        env:
+          TRANSPORT: ${{ matrix.transport }}
 
   lint:
     name: Lint

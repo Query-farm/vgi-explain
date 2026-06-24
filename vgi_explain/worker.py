@@ -77,9 +77,35 @@ _SCHEMA_DESCRIPTION_MD = (
     "Each interprets a model BLOB packed by vgi-sklearn / vgi-xgboost."
 )
 
+_CATALOG_KEYWORDS = (
+    "shap, explainability, interpretability, model explanations, feature contributions, "
+    "feature importance, attribution, scikit-learn, xgboost, machine learning, ml, inference, "
+    "base value, expected value"
+)
+
+# Catalog-qualified SQL fragments selecting a committed model BLOB / feature
+# relation from the repo's test fixtures. The model BLOB cannot be inlined as a
+# scalar subquery (DuckDB forbids subquery arguments to table functions), so it is
+# held in a session VARIABLE and read with getvariable('m') — the idiomatic
+# pattern shown throughout the docs.
+_RF_MODEL = "(SELECT model FROM read_parquet('test/fixtures/models.parquet') WHERE name = 'rf_clf')"
+_FEATURES = "(SELECT id, signal, noise_a, noise_b FROM read_parquet('test/fixtures/features.parquet'))"
+
+_SCHEMA_EXAMPLE_QUERIES = (
+    f"SET VARIABLE m = {_RF_MODEL};\n"
+    "SELECT class, base_value FROM explain.main.shap_base_value(model := getvariable('m')) ORDER BY class;\n"
+    f"SELECT id, feature, class, shap_value FROM explain.main.shap_values({_FEATURES}, "
+    "model := getvariable('m'), id := 'id') ORDER BY id, feature, class LIMIT 6;\n"
+    f"SELECT feature, rank, method FROM explain.main.feature_importance({_FEATURES}, "
+    "model := getvariable('m'), id := 'id') ORDER BY rank;"
+)
+
 _CATALOG_TAGS = {
-    "vgi.description_llm": _CATALOG_DESCRIPTION_LLM,
-    "vgi.description_md": _CATALOG_DESCRIPTION_MD,
+    "vgi.title": "SHAP Model Explanations",
+    "vgi.keywords": _CATALOG_KEYWORDS,
+    "vgi.doc_llm": _CATALOG_DESCRIPTION_LLM,
+    "vgi.doc_md": _CATALOG_DESCRIPTION_MD,
+    "vgi.source_url": SOURCE_URL,
     "vgi.author": "Query.Farm",
     "vgi.copyright": "Copyright 2026 Query Farm LLC - https://query.farm",
     "vgi.license": "MIT",
@@ -88,8 +114,19 @@ _CATALOG_TAGS = {
 }
 
 _SCHEMA_TAGS = {
-    "vgi.description_llm": _SCHEMA_DESCRIPTION_LLM,
-    "vgi.description_md": _SCHEMA_DESCRIPTION_MD,
+    "vgi.title": "Explain — SHAP Functions",
+    "vgi.keywords": (
+        "shap, shap_values, shap_base_value, feature_importance, explainability, "
+        "interpretability, feature contributions, attribution, scikit-learn, xgboost"
+    ),
+    "vgi.doc_llm": _SCHEMA_DESCRIPTION_LLM,
+    "vgi.doc_md": _SCHEMA_DESCRIPTION_MD,
+    "vgi.source_url": "https://github.com/Query-farm/vgi-explain/blob/main/vgi_explain/functions.py",
+    "vgi.example_queries": _SCHEMA_EXAMPLE_QUERIES,
+    # VGI123 classifying tags use BARE keys (NOT vgi.-namespaced).
+    "domain": "machine-learning",
+    "category": "explainability",
+    "topic": "shap-model-explanations",
 }
 
 _EXPLAIN_CATALOG = Catalog(

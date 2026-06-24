@@ -32,15 +32,76 @@ from vgi_explain.functions import EXPLAIN_FUNCTIONS
 log = logging.getLogger(__name__)
 
 DATA_VERSION = __version__
+# A semver *range* (not a concrete version) for the explanation/model-BLOB
+# contract this catalog serves: the whole 0.x line. Surfaced as
+# CatalogInfo.data_version_spec so clients can express compatibility.
+DATA_VERSION_SPEC = ">=0.1.0,<0.2.0"
 GIT_COMMIT = os.environ.get("VGI_EXPLAIN_GIT_COMMIT") or "unknown"
+
+SOURCE_URL = "https://github.com/Query-farm/vgi-explain"
+
+_CATALOG_DESCRIPTION_LLM = (
+    "Compute SHAP (SHapley Additive exPlanations) for already-fitted scikit-learn / XGBoost models as "
+    "DuckDB table functions. Does not train models — it interprets the self-contained model BLOB produced "
+    "by the sibling vgi-sklearn / vgi-xgboost workers (passed as a scalar `model` argument, typically a "
+    "session VARIABLE). Use to answer: why did the model predict this row? (`shap_values` — per-row, "
+    "per-feature signed contributions in long format); what is the model's baseline output? "
+    "(`shap_base_value` — the explainer expected value the contributions add onto); and which features "
+    "matter most overall? (`feature_importance` — global mean(|SHAP|) over a relation, or native "
+    "importances). Multi-class classifiers report a contribution per class."
+)
+
+_CATALOG_DESCRIPTION_MD = (
+    "# explain\n\n"
+    "SHAP model explanations for scikit-learn / XGBoost models, as DuckDB/SQL table functions.\n\n"
+    "vgi-explain does **not** train models — it interprets the self-contained *model BLOB* produced by the "
+    "sibling `vgi-sklearn` / `vgi-xgboost` workers. The model travels as a scalar `model` argument (a DuckDB "
+    "table function allows only one subquery, reserved for the feature relation), so it is usually held in a "
+    "session variable:\n\n"
+    "```sql\n"
+    "SET VARIABLE m = (SELECT model FROM sklearn.fit(...));\n"
+    "SELECT * FROM explain.shap_values((SELECT id, f1, f2 FROM data), model := getvariable('m'), id := 'id');\n"
+    "```\n\n"
+    "Functions: `shap_values` (per-row, per-feature contributions), `shap_base_value` (expected value), "
+    "`feature_importance` (global ranking)."
+)
+
+_SCHEMA_DESCRIPTION_LLM = (
+    "SHAP explanation table functions for fitted scikit-learn / XGBoost models: per-row, per-feature "
+    "contributions (`shap_values`), the model's base/expected value (`shap_base_value`), and global feature "
+    "importance (`feature_importance`). Each takes a model BLOB as the scalar `model` argument."
+)
+
+_SCHEMA_DESCRIPTION_MD = (
+    "SHAP explanation functions over Apache Arrow: `shap_values`, `shap_base_value`, `feature_importance`. "
+    "Each interprets a model BLOB packed by vgi-sklearn / vgi-xgboost."
+)
+
+_CATALOG_TAGS = {
+    "vgi.description_llm": _CATALOG_DESCRIPTION_LLM,
+    "vgi.description_md": _CATALOG_DESCRIPTION_MD,
+    "vgi.author": "Query.Farm",
+    "vgi.copyright": "Copyright 2026 Query Farm LLC - https://query.farm",
+    "vgi.license": "MIT",
+    "vgi.support_contact": "https://github.com/Query-farm/vgi-explain/issues",
+    "vgi.support_policy_url": "https://github.com/Query-farm/vgi-explain/blob/main/README.md",
+}
+
+_SCHEMA_TAGS = {
+    "vgi.description_llm": _SCHEMA_DESCRIPTION_LLM,
+    "vgi.description_md": _SCHEMA_DESCRIPTION_MD,
+}
 
 _EXPLAIN_CATALOG = Catalog(
     name="explain",
     default_schema="main",
+    comment="SHAP explanations for scikit-learn / XGBoost models as SQL functions.",
+    tags=_CATALOG_TAGS,
     schemas=[
         Schema(
             name="main",
             comment="SHAP explanations for scikit-learn / XGBoost models as SQL functions",
+            tags=_SCHEMA_TAGS,
             functions=list(EXPLAIN_FUNCTIONS),
         ),
     ],
@@ -59,7 +120,8 @@ class ExplainCatalog(ReadOnlyCatalogInterface):
             CatalogInfo(
                 name=self._effective_catalog_name,
                 implementation_version=GIT_COMMIT,
-                data_version_spec=DATA_VERSION,
+                data_version_spec=DATA_VERSION_SPEC,
+                source_url=SOURCE_URL,
                 attach_option_specs=[spec.serialize() for spec in self.attach_option_specs],
             )
         ]

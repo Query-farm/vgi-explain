@@ -110,6 +110,18 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
         name = "shap_values"
         description = "Per-row, per-feature SHAP contributions in long format (one row per row x feature [x class])"
         categories = ["explainability", "shap", "inference"]
+        tags = {
+            "vgi.columns_md": (
+                "| column | type | description |\n"
+                "| --- | --- | --- |\n"
+                "| `id` | input `id` column type (else `BIGINT`) | The `id` value carried through (column "
+                "named after the `id` argument), or the 0-based input row index when no `id` is given. |\n"
+                "| `feature` | `VARCHAR` | Feature (column) name the contribution is for. |\n"
+                "| `class` | `VARCHAR` | Class label for multi-class classifiers; `NULL` for regression / "
+                "binary classification. |\n"
+                "| `shap_value` | `DOUBLE` | Signed SHAP contribution of the feature to the model output. |"
+            )
+        }
         examples = [
             FunctionExample(
                 sql=(
@@ -235,6 +247,16 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
         name = "shap_base_value"
         description = "The SHAP base (expected) value of a model -- one row, or one row per class"
         categories = ["explainability", "shap"]
+        tags = {
+            "vgi.columns_md": (
+                "| column | type | description |\n"
+                "| --- | --- | --- |\n"
+                "| `class` | `VARCHAR` | Class label for the base value; `NULL` for regression / binary "
+                "classification (single row). |\n"
+                "| `base_value` | `DOUBLE` | The explainer expected value — the anchor that a row's SHAP "
+                "contributions add onto to reach its prediction. |"
+            )
+        }
         examples = [
             FunctionExample(
                 sql="SELECT * FROM explain.shap_base_value(model := getvariable('m'))",
@@ -340,6 +362,17 @@ class FeatureImportance(SinkBuffer[FeatureImportanceArgs, DrainState]):
         name = "feature_importance"
         description = "Global feature importance: mean(|SHAP|) over the relation (or native importances if empty)"
         categories = ["explainability", "shap"]
+        tags = {
+            "vgi.columns_md": (
+                "| column | type | description |\n"
+                "| --- | --- | --- |\n"
+                "| `feature` | `VARCHAR` | Feature (column) name. |\n"
+                "| `importance` | `DOUBLE` | Global importance: mean(|SHAP|) over the passed rows, or the "
+                "model's native importance when no rows are given. |\n"
+                "| `rank` | `INTEGER` | 1-based rank by importance (1 = most important). |\n"
+                "| `method` | `VARCHAR` | How importance was computed: `'mean_abs_shap'` or `'native'`. |"
+            )
+        }
         examples = [
             FunctionExample(
                 sql=(

@@ -17,6 +17,7 @@ shap / scikit-learn / xgboost are imported at module load (via ``functions`` ->
 from __future__ import annotations
 
 import dataclasses
+import json
 import logging
 import os
 import sys
@@ -77,11 +78,22 @@ _SCHEMA_DESCRIPTION_MD = (
     "Each interprets a model BLOB packed by vgi-sklearn / vgi-xgboost."
 )
 
-_CATALOG_KEYWORDS = (
-    "shap, explainability, interpretability, model explanations, feature contributions, "
-    "feature importance, attribution, scikit-learn, xgboost, machine learning, ml, inference, "
-    "base value, expected value"
-)
+_CATALOG_KEYWORDS = [
+    "shap",
+    "explainability",
+    "interpretability",
+    "model explanations",
+    "feature contributions",
+    "feature importance",
+    "attribution",
+    "scikit-learn",
+    "xgboost",
+    "machine learning",
+    "ml",
+    "inference",
+    "base value",
+    "expected value",
+]
 
 # Catalog-qualified SQL fragments selecting a committed model BLOB / feature
 # relation from the repo's test fixtures. The model BLOB cannot be inlined as a
@@ -102,7 +114,7 @@ _SCHEMA_EXAMPLE_QUERIES = (
 
 _CATALOG_TAGS = {
     "vgi.title": "SHAP Model Explanations",
-    "vgi.keywords": _CATALOG_KEYWORDS,
+    "vgi.keywords": json.dumps(_CATALOG_KEYWORDS),
     "vgi.doc_llm": _CATALOG_DESCRIPTION_LLM,
     "vgi.doc_md": _CATALOG_DESCRIPTION_MD,
     "vgi.source_url": SOURCE_URL,
@@ -115,13 +127,22 @@ _CATALOG_TAGS = {
 
 _SCHEMA_TAGS = {
     "vgi.title": "Explain — SHAP Functions",
-    "vgi.keywords": (
-        "shap, shap_values, shap_base_value, feature_importance, explainability, "
-        "interpretability, feature contributions, attribution, scikit-learn, xgboost"
+    "vgi.keywords": json.dumps(
+        [
+            "shap",
+            "shap_values",
+            "shap_base_value",
+            "feature_importance",
+            "explainability",
+            "interpretability",
+            "feature contributions",
+            "attribution",
+            "scikit-learn",
+            "xgboost",
+        ]
     ),
     "vgi.doc_llm": _SCHEMA_DESCRIPTION_LLM,
     "vgi.doc_md": _SCHEMA_DESCRIPTION_MD,
-    "vgi.source_url": "https://github.com/Query-farm/vgi-explain/blob/main/vgi_explain/functions.py",
     "vgi.example_queries": _SCHEMA_EXAMPLE_QUERIES,
     # VGI123 classifying tags use BARE keys (NOT vgi.-namespaced).
     "domain": "machine-learning",

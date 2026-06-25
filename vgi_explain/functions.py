@@ -51,16 +51,6 @@ from .features import matrix
 from .registry import InvalidModelBlobError, ModelMetadata, UntrustedModelError, unpack_meta, unpack_model
 from .schema_utils import field as sfield
 
-# Base GitHub blob URL for source files in this repo (pinned to `main`). Each
-# object's `vgi.source_url` (VGI128) points at exactly where it is implemented.
-_SOURCE_BASE = "https://github.com/Query-farm/vgi-explain/blob/main/vgi_explain"
-
-
-def _source_url(relative_path: str) -> str:
-    """Build the implementation `vgi.source_url` for a file under `vgi_explain/`."""
-    return f"{_SOURCE_BASE}/{relative_path}"
-
-
 # Self-contained, catalog-qualified SQL fragments backing the executable examples.
 # vgi-explain has no `fit` of its own, so a real model has to come from a sibling
 # worker (vgi-sklearn / vgi-xgboost) or, as here, from the committed fixture the
@@ -128,7 +118,10 @@ class ShapValuesArgs:
             "model",
             default=b"",
             arrow_type=pa.binary(),
-            doc="A model BLOB (as produced by vgi-sklearn / vgi-xgboost).",
+            doc=(
+                "The fitted model to explain, as packed by the vgi-sklearn / vgi-xgboost workers; "
+                "typically held in a session VARIABLE and passed as model := getvariable('m')."
+            ),
         ),
     ]
     id: Annotated[str, Arg("id", default="", doc="Optional id column to carry through (excluded from features).")]
@@ -149,11 +142,21 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
         description = "Per-row, per-feature SHAP contributions in long format (one row per row x feature [x class])"
         categories = ["explainability", "shap", "inference"]
         title = "SHAP Values (Per-Row Feature Contributions)"
-        keywords = (
-            "shap, shap values, feature contributions, local explanation, explainability, "
-            "interpretability, attribution, why prediction, per-row, long format, scikit-learn, "
-            "xgboost, machine learning"
-        )
+        keywords = [
+            "shap",
+            "shap values",
+            "feature contributions",
+            "local explanation",
+            "explainability",
+            "interpretability",
+            "attribution",
+            "why prediction",
+            "per-row",
+            "long format",
+            "scikit-learn",
+            "xgboost",
+            "machine learning",
+        ]
         description_llm = (
             "## `shap_values`\n\n"
             "Compute **per-row, per-feature SHAP contributions** for a fitted scikit-learn / "
@@ -203,8 +206,7 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
             "vgi.title": title,
             "vgi.doc_llm": description_llm,
             "vgi.doc_md": description_md,
-            "vgi.keywords": keywords,
-            "vgi.source_url": _source_url("functions.py"),
+            "vgi.keywords": json.dumps(keywords),
             "vgi.result_columns_md": (
                 "| column | type | description |\n"
                 "| --- | --- | --- |\n"
@@ -332,7 +334,10 @@ class ShapBaseValueArgs:
             "model",
             default=b"",
             arrow_type=pa.binary(),
-            doc="A model BLOB (as produced by vgi-sklearn / vgi-xgboost).",
+            doc=(
+                "The fitted model to explain, as packed by the vgi-sklearn / vgi-xgboost workers; "
+                "typically held in a session VARIABLE and passed as model := getvariable('m')."
+            ),
         ),
     ]
 
@@ -359,10 +364,21 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
         description = "The SHAP base (expected) value of a model -- one row, or one row per class"
         categories = ["explainability", "shap"]
         title = "SHAP Base Value (Model Expected Output)"
-        keywords = (
-            "shap, base value, expected value, baseline, anchor, intercept, expected output, "
-            "explainability, interpretability, additivity, scikit-learn, xgboost, machine learning"
-        )
+        keywords = [
+            "shap",
+            "base value",
+            "expected value",
+            "baseline",
+            "anchor",
+            "intercept",
+            "expected output",
+            "explainability",
+            "interpretability",
+            "additivity",
+            "scikit-learn",
+            "xgboost",
+            "machine learning",
+        ]
         description_llm = (
             "## `shap_base_value`\n\n"
             "Return the **SHAP base (expected) value** of a fitted scikit-learn / XGBoost model — "
@@ -404,8 +420,7 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
             "vgi.title": title,
             "vgi.doc_llm": description_llm,
             "vgi.doc_md": description_md,
-            "vgi.keywords": keywords,
-            "vgi.source_url": _source_url("functions.py"),
+            "vgi.keywords": json.dumps(keywords),
             "vgi.result_columns_md": (
                 "| column | type | description |\n"
                 "| --- | --- | --- |\n"
@@ -518,7 +533,10 @@ class FeatureImportanceArgs:
             "model",
             default=b"",
             arrow_type=pa.binary(),
-            doc="A model BLOB (as produced by vgi-sklearn / vgi-xgboost).",
+            doc=(
+                "The fitted model to explain, as packed by the vgi-sklearn / vgi-xgboost workers; "
+                "typically held in a session VARIABLE and passed as model := getvariable('m')."
+            ),
         ),
     ]
     id: Annotated[str, Arg("id", default="", doc="Optional id column to exclude from features.")]
@@ -570,11 +588,22 @@ class FeatureImportance(SinkBuffer[FeatureImportanceArgs, DrainState]):
         description = "Global feature importance: mean(|SHAP|) over the relation (or native importances if empty)"
         categories = ["explainability", "shap"]
         title = "Feature Importance (Global SHAP Ranking)"
-        keywords = (
-            "feature importance, global importance, mean absolute shap, ranking, top features, "
-            "explainability, interpretability, feature selection, native importance, gini, "
-            "coefficients, scikit-learn, xgboost, machine learning"
-        )
+        keywords = [
+            "feature importance",
+            "global importance",
+            "mean absolute shap",
+            "ranking",
+            "top features",
+            "explainability",
+            "interpretability",
+            "feature selection",
+            "native importance",
+            "gini",
+            "coefficients",
+            "scikit-learn",
+            "xgboost",
+            "machine learning",
+        ]
         description_llm = (
             "## `feature_importance`\n\n"
             "Rank a fitted model's features by **global importance** — by default the "
@@ -620,8 +649,7 @@ class FeatureImportance(SinkBuffer[FeatureImportanceArgs, DrainState]):
             "vgi.title": title,
             "vgi.doc_llm": description_llm,
             "vgi.doc_md": description_md,
-            "vgi.keywords": keywords,
-            "vgi.source_url": _source_url("functions.py"),
+            "vgi.keywords": json.dumps(keywords),
             "vgi.result_columns_md": (
                 "| column | type | description |\n"
                 "| --- | --- | --- |\n"

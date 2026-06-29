@@ -54,6 +54,7 @@ _CATALOG_DESCRIPTION_LLM = (
 
 _CATALOG_DESCRIPTION_MD = (
     "# SHAP Model Explanations in SQL\n\n"
+    "![SHAP logo](https://raw.githubusercontent.com/shap/shap/master/docs/artwork/shap_logo.png)\n\n"
     "**Explainable AI for machine learning predictions, right inside DuckDB — compute SHAP "
     "(SHapley Additive exPlanations) feature attributions for fitted scikit-learn and XGBoost models with "
     "plain SQL.**\n\n"

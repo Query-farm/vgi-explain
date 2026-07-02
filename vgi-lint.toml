@@ -1,0 +1,15 @@
+# vgi-lint-check configuration for the explain (SHAP) worker.
+#
+# The first explanation in a fresh worker process pays a large one-time cost:
+# importing `shap` (which drags in numba -> a JIT warm-up) and constructing the
+# model's SHAP explainer. Once warm, later calls are fast. So example queries and
+# agent-test tasks that touch an explainer need a generous per-query timeout and a
+# raised "slow example" threshold, and are run serially so the explainer warms up
+# exactly once (on the first call) and every later query runs warm.
+#
+# Auto-discovered from the repo root by both the CI `Query-farm/vgi-lint-check@v1`
+# action and a local `vgi-lint` run.
+[execution]
+timeout = 120
+slow_seconds = 30
+concurrency = 1

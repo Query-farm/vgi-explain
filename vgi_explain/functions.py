@@ -207,6 +207,8 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
             "vgi.doc_llm": description_llm,
             "vgi.doc_md": description_md,
             "vgi.keywords": json.dumps(keywords),
+            # VGI413: names a category from the schema's vgi.categories registry.
+            "vgi.category": "local-explanations",
             "vgi.result_columns_md": (
                 "| column | type | description |\n"
                 "| --- | --- | --- |\n"
@@ -421,6 +423,8 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
             "vgi.doc_llm": description_llm,
             "vgi.doc_md": description_md,
             "vgi.keywords": json.dumps(keywords),
+            # VGI413: names a category from the schema's vgi.categories registry.
+            "vgi.category": "base-value",
             "vgi.result_columns_md": (
                 "| column | type | description |\n"
                 "| --- | --- | --- |\n"
@@ -650,6 +654,8 @@ class FeatureImportance(SinkBuffer[FeatureImportanceArgs, DrainState]):
             "vgi.doc_llm": description_llm,
             "vgi.doc_md": description_md,
             "vgi.keywords": json.dumps(keywords),
+            # VGI413: names a category from the schema's vgi.categories registry.
+            "vgi.category": "global-importance",
             "vgi.result_columns_md": (
                 "| column | type | description |\n"
                 "| --- | --- | --- |\n"

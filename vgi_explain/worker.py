@@ -96,8 +96,20 @@ _SCHEMA_DESCRIPTION_LLM = (
 )
 
 _SCHEMA_DESCRIPTION_MD = (
-    "SHAP explanation functions over Apache Arrow: `shap_values`, `shap_base_value`, `feature_importance`. "
-    "Each interprets a model BLOB packed by vgi-sklearn / vgi-xgboost."
+    "# SHAP Explanations\n\n"
+    "Model-interpretability table functions that turn a fitted scikit-learn or XGBoost model into "
+    "per-prediction and dataset-wide **SHAP** feature attributions. Every explanation is computed in place "
+    "over Apache Arrow, so it composes with ordinary SQL joins, filters, and aggregates.\n\n"
+    "## What it covers\n\n"
+    "*Local* interpretability answers **why did the model predict this row?** by attributing the output to "
+    "each input feature; *global* interpretability ranks **which features matter most** across a whole "
+    "dataset. Multi-class classifiers report a contribution per class, and every attribution obeys SHAP "
+    "additivity — a row's base value plus its feature contributions reconstruct the model's output.\n\n"
+    "## How models arrive\n\n"
+    "This schema does **not** train models: it *interprets* the self-contained model BLOB packed by the "
+    "sibling `vgi-sklearn` / `vgi-xgboost` workers. Because a DuckDB table function reserves its single "
+    "subquery slot for the feature relation, the model travels as a scalar `model` argument — typically held "
+    "in a session VARIABLE and read with `getvariable('m')`."
 )
 
 _CATALOG_KEYWORDS = [
@@ -134,6 +146,120 @@ _SCHEMA_EXAMPLE_QUERIES = (
     "model := getvariable('m'), id := 'id') ORDER BY rank;"
 )
 
+_SET_M = f"SET VARIABLE m = {_RF_MODEL}"
+
+# VGI413/VGI408: the schema's ordered category registry (array order = display
+# order). Every function carries a `vgi.category` naming one of these slugs (wired
+# up in functions.py), so no category is left empty (VGI411/VGI412).
+_CATEGORIES_JSON = json.dumps(
+    [
+        {
+            "name": "local-explanations",
+            "title": "Local Explanations",
+            "description": "Per-row, per-feature SHAP contributions explaining why the model predicted each row.",
+        },
+        {
+            "name": "base-value",
+            "title": "Base Value",
+            "description": "The model's expected (baseline) output that per-feature contributions add onto.",
+        },
+        {
+            "name": "global-importance",
+            "title": "Global Importance",
+            "description": "Dataset-wide feature importance ranked by mean absolute SHAP value (or native).",
+        },
+    ]
+)
+
+# VGI152/VGI407: the agent-suitability suite (`vgi-lint simulate`). Each task is a
+# {name, prompt, reference_sql} object; `reference_sql` is a grader-only canonical
+# solution (a SET-VARIABLE step followed by the query) and is never shown to the
+# analyst. Prompts are natural-language and self-contained, naming the committed
+# fixtures the SQL E2E suite uses so an analyst can load the model exactly as the
+# docs describe. Every answer is a stable string / integer (feature names, class
+# labels, counts, the method label) so grading compares VALUES deterministically
+# (`ignore_column_names`). Facts are pinned by test/sql/*.test: rf_clf is a binary
+# classifier (classes 0/1), features are signal/noise_a/noise_b, and `signal` is
+# the informative feature (importance rank 1).
+_AGENT_TEST_TASKS_JSON = json.dumps(
+    [
+        {
+            "name": "top-feature",
+            "prompt": (
+                "A fitted RandomForest classifier is stored as a model BLOB in the committed fixture "
+                "'test/fixtures/models.parquet' (the row WHERE name = 'rf_clf'), and a matching feature "
+                "matrix (columns id, signal, noise_a, noise_b) is in 'test/fixtures/features.parquet'. Load "
+                "the model into a session variable, then rank the model's features by global SHAP importance "
+                "and return only the name of the single most important feature."
+            ),
+            "reference_sql": [
+                _SET_M,
+                f"SELECT feature FROM explain.main.feature_importance({_FEATURES}, "
+                "model := getvariable('m'), id := 'id') ORDER BY rank LIMIT 1",
+            ],
+            "ignore_column_names": True,
+        },
+        {
+            "name": "base-value-class-count",
+            "prompt": (
+                "The model BLOB in fixture 'test/fixtures/models.parquet' (WHERE name = 'rf_clf') is a binary "
+                "classifier. Load it into a session variable and return how many rows (one per class) its SHAP "
+                "base-value output has."
+            ),
+            "reference_sql": [
+                _SET_M,
+                "SELECT count(*) AS n FROM explain.main.shap_base_value(model := getvariable('m'))",
+            ],
+            "ignore_column_names": True,
+        },
+        {
+            "name": "shap-feature-names",
+            "prompt": (
+                "Load the model BLOB from 'test/fixtures/models.parquet' (WHERE name = 'rf_clf') into a session "
+                "variable and compute per-row SHAP contributions for the feature rows in "
+                "'test/fixtures/features.parquet' (columns id, signal, noise_a, noise_b). Return the distinct "
+                "feature names that appear in the output, in alphabetical order."
+            ),
+            "reference_sql": [
+                _SET_M,
+                f"SELECT DISTINCT feature FROM explain.main.shap_values({_FEATURES}, "
+                "model := getvariable('m'), id := 'id') ORDER BY feature",
+            ],
+            "ignore_column_names": True,
+        },
+        {
+            "name": "shap-class-labels",
+            "prompt": (
+                "Using the binary-classifier model BLOB in 'test/fixtures/models.parquet' (WHERE name = "
+                "'rf_clf') and the feature rows in 'test/fixtures/features.parquet' (columns id, signal, "
+                "noise_a, noise_b), return the distinct class labels present in the per-row SHAP output, "
+                "ordered."
+            ),
+            "reference_sql": [
+                _SET_M,
+                f"SELECT DISTINCT class FROM explain.main.shap_values({_FEATURES}, "
+                "model := getvariable('m'), id := 'id') ORDER BY class",
+            ],
+            "ignore_column_names": True,
+        },
+        {
+            "name": "importance-method",
+            "prompt": (
+                "Load the model BLOB from 'test/fixtures/models.parquet' (WHERE name = 'rf_clf') into a session "
+                "variable and compute global feature importance over the non-empty feature relation in "
+                "'test/fixtures/features.parquet' (columns id, signal, noise_a, noise_b). Return the single "
+                "method label the function reports for how importance was computed."
+            ),
+            "reference_sql": [
+                _SET_M,
+                f"SELECT DISTINCT method FROM explain.main.feature_importance({_FEATURES}, "
+                "model := getvariable('m'), id := 'id')",
+            ],
+            "ignore_column_names": True,
+        },
+    ]
+)
+
 _CATALOG_TAGS = {
     "vgi.title": "SHAP Model Explanations",
     "vgi.keywords": json.dumps(_CATALOG_KEYWORDS),
@@ -145,6 +271,8 @@ _CATALOG_TAGS = {
     "vgi.license": "MIT",
     "vgi.support_contact": "https://github.com/Query-farm/vgi-explain/issues",
     "vgi.support_policy_url": "https://github.com/Query-farm/vgi-explain/blob/main/README.md",
+    # VGI152/VGI407: agent-suitability suite (grader-only reference_sql per task).
+    "vgi.agent_test_tasks": _AGENT_TEST_TASKS_JSON,
 }
 
 _SCHEMA_TAGS = {
@@ -165,6 +293,8 @@ _SCHEMA_TAGS = {
     ),
     "vgi.doc_llm": _SCHEMA_DESCRIPTION_LLM,
     "vgi.doc_md": _SCHEMA_DESCRIPTION_MD,
+    # VGI413/VGI408: the schema's ordered category registry.
+    "vgi.categories": _CATEGORIES_JSON,
     "vgi.example_queries": _SCHEMA_EXAMPLE_QUERIES,
     # VGI123 classifying tags use BARE keys (NOT vgi.-namespaced).
     "domain": "machine-learning",

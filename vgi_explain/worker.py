@@ -24,7 +24,7 @@ import sys
 from typing import Any
 
 from vgi import Worker
-from vgi.catalog import Catalog, ReadOnlyCatalogInterface, Schema
+from vgi.catalog import Catalog, ReadOnlyCatalogInterface, Schema, View
 from vgi.catalog.catalog_interface import CatalogAttachResult, CatalogInfo
 
 from vgi_explain import __version__
@@ -73,11 +73,8 @@ _CATALOG_DESCRIPTION_MD = (
     "workers. SHAP automatically selects an appropriate explainer (e.g. TreeExplainer for tree ensembles), so "
     "explanations are exact and fast for the supported model families. Because a DuckDB table function accepts "
     "only one subquery argument (reserved for the feature relation), the model travels as a scalar `model` "
-    "argument, usually held in a session variable:\n\n"
-    "```sql\n"
-    "SET VARIABLE m = (SELECT model FROM sklearn.fit(...));\n"
-    "SELECT * FROM explain.shap_values((SELECT id, f1, f2 FROM data), model := getvariable('m'), id := 'id');\n"
-    "```\n\n"
+    "argument, usually held in a session variable and read with `getvariable('m')` — see the schema's and "
+    "each function's example queries for ready-to-run SQL.\n\n"
     "Three functions make up the surface. `shap_values` streams a feature relation and emits per-row, "
     "per-feature signed contributions in long format (with a contribution per class for multi-class "
     "classifiers), aligning input columns to the model's fitted features by name. `shap_base_value` returns "
@@ -168,6 +165,11 @@ _CATEGORIES_JSON = json.dumps(
             "title": "Global Importance",
             "description": "Dataset-wide feature importance ranked by mean absolute SHAP value (or native).",
         },
+        {
+            "name": "discovery",
+            "title": "Discovery",
+            "description": "Browsable, credential-free registries for exploring the worker's surface.",
+        },
     ]
 )
 
@@ -183,6 +185,15 @@ _CATEGORIES_JSON = json.dumps(
 # the informative feature (importance rank 1).
 _AGENT_TEST_TASKS_JSON = json.dumps(
     [
+        {
+            "name": "list-functions",
+            "prompt": (
+                "This worker exposes a browsable registry view of its SHAP explanation functions. Using "
+                "that registry, return the names of all the functions it lists, in alphabetical order."
+            ),
+            "reference_sql": ("SELECT function_name FROM explain.main.shap_functions ORDER BY function_name"),
+            "ignore_column_names": True,
+        },
         {
             "name": "top-feature",
             "prompt": (
@@ -302,6 +313,112 @@ _SCHEMA_TAGS = {
     "topic": "shap-model-explanations",
 }
 
+# VGI146: a worker with only table functions gives an agent nothing to browse — it
+# must know a function's arguments before it can retrieve any row. Expose a curated,
+# credential-free registry of the worker's functions as a plain VIEW (built from an
+# inline VALUES list, so it scans with no model and no network) that an agent can
+# `SELECT *` from to discover the surface. Rows mirror the schema's vgi.categories.
+_FUNCTION_REGISTRY_ROWS = [
+    (
+        "shap_values",
+        "table_function",
+        "local-explanations",
+        "Per-row, per-feature SHAP contributions in long format (why the model predicted each row).",
+    ),
+    (
+        "shap_base_value",
+        "table_function",
+        "base-value",
+        "The model expected (base) output that per-feature SHAP contributions add onto.",
+    ),
+    (
+        "feature_importance",
+        "table_function",
+        "global-importance",
+        "Dataset-wide feature importance ranked by mean absolute SHAP value (or native importances).",
+    ),
+]
+
+_FUNCTION_REGISTRY_VALUES = ",\n    ".join(
+    "('{}', '{}', '{}', '{}')".format(name, kind, category, summary.replace("'", "''"))
+    for name, kind, category, summary in _FUNCTION_REGISTRY_ROWS
+)
+
+_FUNCTION_REGISTRY_VIEW_SQL = (
+    "SELECT function_name, function_kind, category, summary FROM (VALUES\n"
+    f"    {_FUNCTION_REGISTRY_VALUES}\n"
+    ") AS t(function_name, function_kind, category, summary)"
+)
+
+_FUNCTION_REGISTRY_VIEW = View(
+    name="shap_functions",
+    definition=_FUNCTION_REGISTRY_VIEW_SQL,
+    comment="Browsable registry of the SHAP explanation functions this worker exposes.",
+    column_comments={
+        "function_name": "Name of the table function in the `explain.main` schema.",
+        "function_kind": "The kind of SQL object (always `table_function` here).",
+        "category": "The function's category slug (see the schema's vgi.categories registry).",
+        "summary": "One-line description of what the function computes.",
+    },
+    tags={
+        "vgi.title": "SHAP Functions Registry",
+        "vgi.doc_llm": (
+            "A zero-argument, credential-free **discovery view** listing the three SHAP explanation "
+            "table functions this worker exposes — `shap_values`, `shap_base_value`, and "
+            "`feature_importance` — with each function's kind, category slug, and a one-line summary. "
+            "Query it first to browse the worker's surface before calling a specific function (each of "
+            "which needs a model BLOB argument). Columns: `function_name`, `function_kind`, `category`, "
+            "`summary`."
+        ),
+        "vgi.doc_md": (
+            "# shap_functions\n\n"
+            "A browsable registry of the SHAP explanation table functions this worker exposes. It "
+            "takes no arguments and needs no model, so it is the cheapest way to discover the surface "
+            "before calling a function.\n\n"
+            "## Columns\n\n"
+            "- `function_name` (VARCHAR) -- the table function's name in `explain.main`.\n"
+            "- `function_kind` (VARCHAR) -- the object kind (always `table_function`).\n"
+            "- `category` (VARCHAR) -- the function's category slug.\n"
+            "- `summary` (VARCHAR) -- a one-line description.\n\n"
+            "See the example queries for ready-to-run SQL."
+        ),
+        "vgi.keywords": json.dumps(
+            ["registry", "functions", "discovery", "catalog", "shap", "explainability", "list functions"]
+        ),
+        # VGI411: assign the view to a category from the schema's vgi.categories registry.
+        "vgi.category": "discovery",
+        # VGI123: bare (non-namespaced) classifying tags, matching the schema's.
+        "domain": "machine-learning",
+        "topic": "shap-function-registry",
+        # VGI501/VGI511/VGI504/VGI505/VGI151: fully-qualified, model-free illustrative examples
+        # calling the view. These scan the inline VALUES registry with no model and no network, so
+        # they run cleanly under --execute and give humans/agents a browsable entry point.
+        "vgi.example_queries": json.dumps(
+            [
+                {
+                    "description": "Browse the worker's SHAP functions and their categories.",
+                    "sql": "SELECT function_name, category, summary FROM explain.main.shap_functions ORDER BY category",
+                },
+                {
+                    "description": "Count how many functions fall in each category.",
+                    "sql": (
+                        "SELECT category, count(*) AS function_count FROM explain.main.shap_functions "
+                        "GROUP BY category ORDER BY category"
+                    ),
+                },
+                {
+                    "description": "Find which function computes dataset-wide (global) feature importance.",
+                    "sql": (
+                        "SELECT function_name, summary FROM explain.main.shap_functions "
+                        "WHERE category = 'global-importance'"
+                    ),
+                },
+            ]
+        ),
+    },
+)
+
+
 _EXPLAIN_CATALOG = Catalog(
     name="explain",
     default_schema="main",
@@ -313,6 +430,7 @@ _EXPLAIN_CATALOG = Catalog(
             comment="SHAP explanations for scikit-learn / XGBoost models as SQL functions",
             tags=_SCHEMA_TAGS,
             functions=list(EXPLAIN_FUNCTIONS),
+            views=[_FUNCTION_REGISTRY_VIEW],
         ),
     ],
 )

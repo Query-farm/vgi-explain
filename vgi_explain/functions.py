@@ -31,7 +31,6 @@ import numpy as np
 import pyarrow as pa
 from vgi.arguments import Arg, TableInput
 from vgi.invocation import BindResponse
-from vgi.metadata import FunctionExample
 from vgi.table_buffering_function import TableBufferingParams
 from vgi.table_function import (
     BindParams,
@@ -63,9 +62,9 @@ from .schema_utils import field as sfield
 # with `getvariable('m')`. Each executable example is therefore a TWO-statement
 # list: a `SET VARIABLE` step followed by the query, run in order against the same
 # connection, so the strict linter EXECUTES them cleanly from the repo working
-# directory. The per-function `Meta.examples` use the same `getvariable('m')` form
-# (it binds under the linter's EXPLAIN even before the VARIABLE is set, because the
-# output schema is static and model validation is deferred to execution).
+# directory. Each function also carries a fully-qualified `vgi.example_queries`
+# entry (shown, not executed) that opens with the same `SET VARIABLE` step, so the
+# illustrative SQL is complete and copy-runnable.
 _RF_MODEL = "(SELECT model FROM read_parquet('test/fixtures/models.parquet') WHERE name = 'rf_clf')"
 _FEATURES = "(SELECT id, signal, noise_a, noise_b FROM read_parquet('test/fixtures/features.parquet'))"
 _SET_MODEL = f"SET VARIABLE m = {_RF_MODEL}"
@@ -176,9 +175,11 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
             "classifier with K>2 classes there is one row per class (the `class` column carries the "
             "label); regression and binary classification collapse to a single output with "
             "`class = NULL`.\n\n"
-            "**Edge cases.** An empty input relation yields zero rows; a missing feature column or "
-            "an invalid / untrusted model BLOB raises a clear `invalid model: …` error rather than "
-            "crashing."
+            "**Edge cases.** An empty input relation yields zero rows. A missing feature column is an "
+            "input-alignment failure and raises a clear `input is missing feature column(s) …` error "
+            "(listing the model's expected features and the input's columns); a separate `invalid "
+            "model: …` error is raised only for a malformed, truncated, or untrusted model BLOB. "
+            "Neither crashes the worker."
         )
         description_md = (
             "# shap_values\n\n"
@@ -186,21 +187,19 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
             "in **long format** (one row per input row x feature, and per class for multi-class "
             "classifiers).\n\n"
             "## Usage\n\n"
-            "```sql\n"
-            "SET VARIABLE m = (SELECT model FROM read_parquet('test/fixtures/models.parquet')\n"
-            "                  WHERE name = 'rf_clf');\n"
-            "SELECT * FROM explain.shap_values(\n"
-            "  (SELECT id, signal, noise_a, noise_b FROM data),\n"
-            "  model := getvariable('m'), id := 'id');\n"
-            "```\n\n"
             "The model travels as the scalar `model` argument (a DuckDB table function allows only "
-            "one subquery, reserved for the feature relation). Features are aligned to the model's "
-            "fitted columns by name, so input order is irrelevant.\n\n"
+            "one subquery, reserved for the feature relation); it is usually held in a session "
+            "VARIABLE and read with `getvariable('m')`. Pass the feature relation as the single table "
+            "argument, the model as `model := getvariable('m')`, and optionally the id column as "
+            "`id := 'row_id'`. Features are aligned to the model's fitted columns by name, so input "
+            "order is irrelevant. A runnable end-to-end demonstration ships in this function's "
+            "`vgi.executable_examples`.\n\n"
             "## Notes\n\n"
             "- Each row's contributions plus the model base value (`shap_base_value`) reconstruct "
             "the prediction (SHAP additivity).\n"
             "- `class` is the label for multi-class classifiers, `NULL` for regression / binary.\n"
-            "- A missing feature column or an invalid model BLOB raises a clear error."
+            "- A missing feature column raises an `input is missing feature column(s) …` error; a "
+            "malformed or untrusted model BLOB raises an `invalid model: …` error."
         )
         tags = {
             "vgi.title": title,
@@ -209,26 +208,59 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
             "vgi.keywords": json.dumps(keywords),
             # VGI413: names a category from the schema's vgi.categories registry.
             "vgi.category": "local-explanations",
-            "vgi.result_columns_md": (
-                "| column | type | description |\n"
-                "| --- | --- | --- |\n"
-                "| `id` | input `id` column type (else `BIGINT`) | The `id` value carried through (column "
-                "named after the `id` argument), or the 0-based input row index when no `id` is given. |\n"
-                "| `feature` | `VARCHAR` | Feature (column) name the contribution is for. |\n"
-                "| `class` | `VARCHAR` | Class label for multi-class classifiers; `NULL` for regression / "
-                "binary classification. |\n"
-                "| `shap_value` | `DOUBLE` | Signed SHAP contribution of the feature to the model output. |"
+            # VGI414/VGI307: structured static result schema (JSON {name,type,description}).
+            # The `id` column is renamed to the `id` argument and carries the input id
+            # column's type; the executable examples pass a BIGINT id, so it is reported
+            # as BIGINT here (and matches under --execute, VGI910).
+            "vgi.result_columns_schema": json.dumps(
+                [
+                    {
+                        "name": "id",
+                        "type": "BIGINT",
+                        "description": (
+                            "The value of the id column carried through (renamed to the `id` argument), or "
+                            "the 0-based input row index when no `id` is given. Mirrors the input id column's "
+                            "type (BIGINT for the documented examples)."
+                        ),
+                    },
+                    {
+                        "name": "feature",
+                        "type": "VARCHAR",
+                        "description": "Feature (column) name the contribution is for.",
+                    },
+                    {
+                        "name": "class",
+                        "type": "VARCHAR",
+                        "description": (
+                            "Class label for multi-class classifiers; NULL for regression / binary classification."
+                        ),
+                    },
+                    {
+                        "name": "shap_value",
+                        "type": "DOUBLE",
+                        "description": "Signed SHAP contribution of the feature to the model output.",
+                    },
+                ]
+            ),
+            # VGI511/VGI906: fully catalog-qualified, projected (not SELECT *), guaranteed-runnable
+            # example calling this function. Two-statement list — a SET VARIABLE step that loads the
+            # committed fixture model, then the query — run in order against one connection, so it
+            # both demonstrates the object AND executes cleanly under --execute.
+            "vgi.executable_examples": json.dumps(
+                [
+                    {
+                        "description": (
+                            "Explain each row's prediction feature by feature (model held in session VARIABLE m)."
+                        ),
+                        "sql": [
+                            _SET_MODEL,
+                            f"SELECT id, feature, class, shap_value FROM explain.main.shap_values({_FEATURES}, "
+                            "model := getvariable('m'), id := 'id') ORDER BY id, feature, class LIMIT 6",
+                        ],
+                    }
+                ]
             ),
         }
-        examples = [
-            FunctionExample(
-                sql=(
-                    f"SELECT * FROM explain.shap_values({_FEATURES}, "
-                    "model := getvariable('m'), id := 'id') ORDER BY id, feature, class LIMIT 6"
-                ),
-                description="Explain each row's prediction feature by feature (model held in session VARIABLE m)",
-            )
-        ]
 
     @classmethod
     def on_bind(cls, params: BindParams[ShapValuesArgs]) -> BindResponse:
@@ -406,12 +438,9 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
             "explainer's expected output — the anchor that a row's SHAP contributions add onto to "
             "reach its prediction.\n\n"
             "## Usage\n\n"
-            "```sql\n"
-            "SET VARIABLE m = (SELECT model FROM read_parquet('test/fixtures/models.parquet')\n"
-            "                  WHERE name = 'rf_clf');\n"
-            "SELECT * FROM explain.shap_base_value(model := getvariable('m'));\n"
-            "```\n\n"
-            "Takes only the scalar `model` BLOB (no feature relation).\n\n"
+            "Takes only the scalar `model` BLOB (no feature relation), usually held in a session "
+            "VARIABLE and read with `getvariable('m')` — pass it as `model := getvariable('m')`. A "
+            "runnable end-to-end demonstration ships in this function's `vgi.executable_examples`.\n\n"
             "## Notes\n\n"
             "- One row per class for multi-class classifiers; a single `class = NULL` row "
             "otherwise.\n"
@@ -425,54 +454,44 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
             "vgi.keywords": json.dumps(keywords),
             # VGI413: names a category from the schema's vgi.categories registry.
             "vgi.category": "base-value",
-            "vgi.result_columns_md": (
-                "| column | type | description |\n"
-                "| --- | --- | --- |\n"
-                "| `class` | `VARCHAR` | Class label for the base value; `NULL` for regression / binary "
-                "classification (single row). |\n"
-                "| `base_value` | `DOUBLE` | The explainer expected value — the anchor that a row's SHAP "
-                "contributions add onto to reach its prediction. |"
+            # VGI414/VGI307: structured static result schema (JSON {name,type,description}).
+            "vgi.result_columns_schema": json.dumps(
+                [
+                    {
+                        "name": "class",
+                        "type": "VARCHAR",
+                        "description": (
+                            "Class label for the base value; NULL for regression / binary classification (single row)."
+                        ),
+                    },
+                    {
+                        "name": "base_value",
+                        "type": "DOUBLE",
+                        "description": (
+                            "The explainer expected value — the anchor that a row's SHAP contributions add "
+                            "onto to reach its prediction."
+                        ),
+                    },
+                ]
             ),
-            # VGI509: at least one guaranteed-runnable, catalog-qualified example. Each SQL is
-            # self-contained (model inlined from the committed fixture) and re-runnable against
-            # an attached `explain` worker. `expected_result` is omitted deliberately — the
-            # linter only needs each query to execute cleanly.
+            # VGI509/VGI511/VGI906: guaranteed-runnable, fully catalog-qualified example calling
+            # this function. Two-statement list — a SET VARIABLE step that loads the committed
+            # fixture model, then the query — run in order against one connection, so it both
+            # demonstrates the object AND executes cleanly under --execute. `expected_result` is
+            # omitted deliberately (the linter only needs each to run).
             "vgi.executable_examples": json.dumps(
                 [
                     {
                         "description": "The model's expected (base) output — one row per class for a classifier.",
                         "sql": [
                             _SET_MODEL,
-                            "SELECT class, base_value FROM explain.shap_base_value(model := getvariable('m')) "
+                            "SELECT class, base_value FROM explain.main.shap_base_value(model := getvariable('m')) "
                             "ORDER BY class",
-                        ],
-                    },
-                    {
-                        "description": "Explain each row's prediction feature by feature (long format).",
-                        "sql": [
-                            _SET_MODEL,
-                            f"SELECT id, feature, class, shap_value FROM explain.shap_values("
-                            f"{_FEATURES}, model := getvariable('m'), id := 'id') "
-                            "ORDER BY id, feature, class LIMIT 6",
-                        ],
-                    },
-                    {
-                        "description": "Rank features by their average SHAP magnitude across the dataset.",
-                        "sql": [
-                            _SET_MODEL,
-                            f"SELECT feature, rank, method FROM explain.feature_importance("
-                            f"{_FEATURES}, model := getvariable('m'), id := 'id') ORDER BY rank",
                         ],
                     },
                 ]
             ),
         }
-        examples = [
-            FunctionExample(
-                sql=("SELECT class, base_value FROM explain.shap_base_value(model := getvariable('m')) ORDER BY class"),
-                description="The model's expected output, the anchor SHAP values add onto (model in VARIABLE m)",
-            )
-        ]
 
     @classmethod
     def on_bind(cls, params: BindParams[ShapBaseValueArgs]) -> BindResponse:
@@ -635,14 +654,10 @@ class FeatureImportance(SinkBuffer[FeatureImportanceArgs, DrainState]):
             "`mean(|SHAP|)` over the relation you pass, or the model's native importances when the "
             "relation is empty.\n\n"
             "## Usage\n\n"
-            "```sql\n"
-            "SET VARIABLE m = (SELECT model FROM read_parquet('test/fixtures/models.parquet')\n"
-            "                  WHERE name = 'rf_clf');\n"
-            "SELECT * FROM explain.feature_importance(\n"
-            "  (SELECT id, signal, noise_a, noise_b FROM data),\n"
-            "  model := getvariable('m'), id := 'id')\n"
-            "ORDER BY rank;\n"
-            "```\n\n"
+            "Pass the feature relation as the single table argument and the model as the scalar "
+            "`model` argument (usually a session VARIABLE read with `getvariable('m')`, passed as "
+            "`model := getvariable('m')`); order the output by `rank`. A runnable end-to-end "
+            "demonstration ships in this function's `vgi.executable_examples`.\n\n"
             "## Notes\n\n"
             "- `method = 'mean_abs_shap'` when rows are supplied; `'native'` when the relation is "
             "empty (uses `feature_importances_` / `|coef_|`).\n"
@@ -656,25 +671,53 @@ class FeatureImportance(SinkBuffer[FeatureImportanceArgs, DrainState]):
             "vgi.keywords": json.dumps(keywords),
             # VGI413: names a category from the schema's vgi.categories registry.
             "vgi.category": "global-importance",
-            "vgi.result_columns_md": (
-                "| column | type | description |\n"
-                "| --- | --- | --- |\n"
-                "| `feature` | `VARCHAR` | Feature (column) name. |\n"
-                "| `importance` | `DOUBLE` | Global importance: mean(|SHAP|) over the passed rows, or the "
-                "model's native importance when no rows are given. |\n"
-                "| `rank` | `INTEGER` | 1-based rank by importance (1 = most important). |\n"
-                "| `method` | `VARCHAR` | How importance was computed: `'mean_abs_shap'` or `'native'`. |"
+            # VGI414/VGI307: structured static result schema (JSON {name,type,description}).
+            "vgi.result_columns_schema": json.dumps(
+                [
+                    {
+                        "name": "feature",
+                        "type": "VARCHAR",
+                        "description": "Feature (column) name.",
+                    },
+                    {
+                        "name": "importance",
+                        "type": "DOUBLE",
+                        "description": (
+                            "Global importance: mean(|SHAP|) over the passed rows, or the model's native "
+                            "importance when no rows are given."
+                        ),
+                    },
+                    {
+                        "name": "rank",
+                        "type": "INTEGER",
+                        "description": "1-based rank by importance (1 = most important).",
+                    },
+                    {
+                        "name": "method",
+                        "type": "VARCHAR",
+                        "description": "How importance was computed: 'mean_abs_shap' or 'native'.",
+                    },
+                ]
+            ),
+            # VGI511/VGI906: fully-qualified, projected, guaranteed-runnable example calling this
+            # function. Two-statement list — a SET VARIABLE step that loads the committed fixture
+            # model, then the query — run in order against one connection.
+            "vgi.executable_examples": json.dumps(
+                [
+                    {
+                        "description": (
+                            "Rank features by their average SHAP magnitude across the dataset (model in "
+                            "session VARIABLE m)."
+                        ),
+                        "sql": [
+                            _SET_MODEL,
+                            f"SELECT feature, rank, method FROM explain.main.feature_importance({_FEATURES}, "
+                            "model := getvariable('m'), id := 'id') ORDER BY rank",
+                        ],
+                    }
+                ]
             ),
         }
-        examples = [
-            FunctionExample(
-                sql=(
-                    f"SELECT feature, rank, method FROM explain.feature_importance({_FEATURES}, "
-                    "model := getvariable('m'), id := 'id') ORDER BY rank"
-                ),
-                description="Rank features by their average SHAP magnitude across the dataset (model in VARIABLE m)",
-            )
-        ]
 
     @classmethod
     def on_bind(cls, params: BindParams[FeatureImportanceArgs]) -> BindResponse:

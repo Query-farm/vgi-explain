@@ -1062,6 +1062,9 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
+serve = [
+    { name = "vgi-python", extra = ["http"] },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -1086,9 +1089,10 @@ requires-dist = [
     { name = "shap", specifier = ">=0.46" },
     { name = "skops", specifier = ">=0.11" },
     { name = "vgi-python", extras = ["http"], specifier = ">=0.16.0" },
+    { name = "vgi-python", extras = ["http"], marker = "extra == 'serve'", specifier = ">=0.16.0" },
     { name = "xgboost", specifier = ">=2.0" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["serve", "dev"]
 
 [package.metadata.requires-dev]
 dev = [

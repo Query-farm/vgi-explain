@@ -166,7 +166,7 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
             "(positive) or down (negative), relative to the model's base value "
             "(see `shap_base_value`). Summing a row's contributions and the base value reconstructs "
             "the model's raw output (SHAP additivity).\n\n"
-            "**Inputs.** A feature relation as the single subquery argument; a `model` BLOB "
+            "**Inputs.** A feature relation as the single subquery argument; a `model` `BLOB` "
             "(scalar, produced by vgi-sklearn / vgi-xgboost), typically a session VARIABLE or an "
             "inline subquery; and an optional `id` column name to carry through (excluded from "
             "features). Features are aligned to the model's fitted columns **by name**, so input "
@@ -178,7 +178,7 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
             "**Edge cases.** An empty input relation yields zero rows. A missing feature column is an "
             "input-alignment failure and raises a clear `input is missing feature column(s) …` error "
             "(listing the model's expected features and the input's columns); a separate `invalid "
-            "model: …` error is raised only for a malformed, truncated, or untrusted model BLOB. "
+            "model: …` error is raised only for a malformed, truncated, or untrusted model `BLOB`. "
             "Neither crashes the worker."
         )
         description_md = (
@@ -199,7 +199,7 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
             "the prediction (SHAP additivity).\n"
             "- `class` is the label for multi-class classifiers, `NULL` for regression / binary.\n"
             "- A missing feature column raises an `input is missing feature column(s) …` error; a "
-            "malformed or untrusted model BLOB raises an `invalid model: …` error."
+            "malformed or untrusted model `BLOB` raises an `invalid model: …` error."
         )
         tags = {
             "vgi.title": title,
@@ -422,15 +422,15 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
             "**When to use it.** Establish the model's baseline before reading local explanations: a "
             "row's prediction = base value + sum of its SHAP contributions. Pair it with "
             "`shap_values` whenever you present a per-row attribution.\n\n"
-            "**Inputs.** Just the scalar `model` BLOB (produced by vgi-sklearn / vgi-xgboost) — no "
+            "**Inputs.** Just the scalar `model` `BLOB` (produced by vgi-sklearn / vgi-xgboost) — no "
             "feature relation. It is typically a session VARIABLE or an inline subquery.\n\n"
             "**Outputs.** Columns `class`, `base_value`. A multi-class classifier returns one row "
             "per class (the `class` column carries the label); regression and binary classification "
             "return a single row with `class = NULL`.\n\n"
-            "**Edge cases.** The model BLOB does not carry a background sample, so the base value is "
+            "**Edge cases.** The model `BLOB` does not carry a background sample, so the base value is "
             "computed from a single zero feature vector — exact for tree / linear explainers, an "
             "approximation for models that require real background data. An invalid / untrusted "
-            "BLOB raises a clear `invalid model: …` error."
+            "`BLOB` raises a clear `invalid model: …` error."
         )
         description_md = (
             "# shap_base_value\n\n"
@@ -438,7 +438,7 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
             "explainer's expected output — the anchor that a row's SHAP contributions add onto to "
             "reach its prediction.\n\n"
             "## Usage\n\n"
-            "Takes only the scalar `model` BLOB (no feature relation), usually held in a session "
+            "Takes only the scalar `model` `BLOB` (no feature relation), usually held in a session "
             "VARIABLE and read with `getvariable('m')` — pass it as `model := getvariable('m')`. A "
             "runnable end-to-end demonstration ships in this function's `vgi.executable_examples`.\n\n"
             "## Notes\n\n"
@@ -638,14 +638,14 @@ class FeatureImportance(SinkBuffer[FeatureImportanceArgs, DrainState]):
             "summaries, feature selection, or dashboards. SHAP-based importance is consistent and "
             "model-agnostic, unlike split-count / Gini heuristics.\n\n"
             "**Inputs.** A feature relation (the single subquery argument) to average over; the "
-            "scalar `model` BLOB; and an optional `id` column name to exclude from features. "
+            "scalar `model` `BLOB`; and an optional `id` column name to exclude from features. "
             "Features are aligned to the model's fitted columns by name.\n\n"
             "**Outputs.** Columns `feature`, `importance`, `rank` (1 = most important), and `method` "
             "(`'mean_abs_shap'` or `'native'`).\n\n"
             "**Edge cases.** If the passed relation has **zero rows**, the function falls back to "
             "the model's *native* importances (`feature_importances_`, or `|coef_|` for linear "
             "models) and sets `method = 'native'`; if the model exposes neither, that empty-relation "
-            "call raises a clear error. An invalid / untrusted model BLOB raises "
+            "call raises a clear error. An invalid / untrusted model `BLOB` raises "
             "`invalid model: …`."
         )
         description_md = (

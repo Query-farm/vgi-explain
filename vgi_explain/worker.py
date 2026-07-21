@@ -43,7 +43,7 @@ SOURCE_URL = "https://github.com/Query-farm/vgi-explain"
 
 _CATALOG_DESCRIPTION_LLM = (
     "Compute SHAP (SHapley Additive exPlanations) for already-fitted scikit-learn / XGBoost models as "
-    "DuckDB table functions. Does not train models — it interprets the self-contained model BLOB produced "
+    "DuckDB table functions. Does not train models — it interprets the self-contained model `BLOB` produced "
     "by the sibling vgi-sklearn / vgi-xgboost workers (passed as a scalar `model` argument, typically a "
     "session VARIABLE). Use to answer: why did the model predict this row? (`shap_values` — per-row, "
     "per-feature signed contributions in long format); what is the model's baseline output? "
@@ -68,7 +68,7 @@ _CATALOG_DESCRIPTION_MD = (
     "implementation of Shapley-value feature attribution "
     "([documentation](https://shap.readthedocs.io/en/latest/)), grounded in cooperative game theory's "
     "[Shapley values](https://en.wikipedia.org/wiki/Shapley_value). Importantly, vgi-explain does **not** "
-    "train models — it *interprets* the self-contained *model BLOB* produced by the sibling `vgi-sklearn` "
+    "train models — it *interprets* the self-contained *model* `BLOB` produced by the sibling `vgi-sklearn` "
     "([scikit-learn](https://scikit-learn.org/)) and `vgi-xgboost` ([XGBoost](https://xgboost.readthedocs.io/)) "
     "workers. SHAP automatically selects an appropriate explainer (e.g. TreeExplainer for tree ensembles), so "
     "explanations are exact and fast for the supported model families. Because a DuckDB table function accepts "
@@ -89,7 +89,7 @@ _CATALOG_DESCRIPTION_MD = (
 _SCHEMA_DESCRIPTION_LLM = (
     "SHAP explanation table functions for fitted scikit-learn / XGBoost models: per-row, per-feature "
     "contributions (`shap_values`), the model's base/expected value (`shap_base_value`), and global feature "
-    "importance (`feature_importance`). Each takes a model BLOB as the scalar `model` argument."
+    "importance (`feature_importance`). Each takes a model `BLOB` as the scalar `model` argument."
 )
 
 _SCHEMA_DESCRIPTION_MD = (
@@ -103,7 +103,7 @@ _SCHEMA_DESCRIPTION_MD = (
     "dataset. Multi-class classifiers report a contribution per class, and every attribution obeys SHAP "
     "additivity — a row's base value plus its feature contributions reconstruct the model's output.\n\n"
     "## How models arrive\n\n"
-    "This schema does **not** train models: it *interprets* the self-contained model BLOB packed by the "
+    "This schema does **not** train models: it *interprets* the self-contained model `BLOB` packed by the "
     "sibling `vgi-sklearn` / `vgi-xgboost` workers. Because a DuckDB table function reserves its single "
     "subquery slot for the feature relation, the model travels as a scalar `model` argument — typically held "
     "in a session VARIABLE and read with `getvariable('m')`."
@@ -134,16 +134,40 @@ _CATALOG_KEYWORDS = [
 _RF_MODEL = "(SELECT model FROM read_parquet('test/fixtures/models.parquet') WHERE name = 'rf_clf')"
 _FEATURES = "(SELECT id, signal, noise_a, noise_b FROM read_parquet('test/fixtures/features.parquet'))"
 
-_SCHEMA_EXAMPLE_QUERIES = (
-    f"SET VARIABLE m = {_RF_MODEL};\n"
-    "SELECT class, base_value FROM explain.main.shap_base_value(model := getvariable('m')) ORDER BY class;\n"
-    f"SELECT id, feature, class, shap_value FROM explain.main.shap_values({_FEATURES}, "
-    "model := getvariable('m'), id := 'id') ORDER BY id, feature, class LIMIT 6;\n"
-    f"SELECT feature, rank, method FROM explain.main.feature_importance({_FEATURES}, "
-    "model := getvariable('m'), id := 'id') ORDER BY rank;"
-)
-
 _SET_M = f"SET VARIABLE m = {_RF_MODEL}"
+
+# VGI515: schema-level example queries as a JSON list of {description, sql} objects
+# (each description non-empty). The model BLOB cannot be inlined (DuckDB forbids
+# subquery arguments to table functions), so every example opens with the same
+# `SET VARIABLE m := …` step that loads the committed fixture model, then the query
+# — run in order against one connection, so each executes cleanly under --execute.
+_SCHEMA_EXAMPLE_QUERIES = json.dumps(
+    [
+        {
+            "description": "Read the model's baseline output (one row per class for a binary classifier).",
+            "sql": [
+                _SET_M,
+                "SELECT class, base_value FROM explain.main.shap_base_value(model := getvariable('m')) ORDER BY class",
+            ],
+        },
+        {
+            "description": "Explain each row's prediction feature by feature (long-format SHAP contributions).",
+            "sql": [
+                _SET_M,
+                f"SELECT id, feature, class, shap_value FROM explain.main.shap_values({_FEATURES}, "
+                "model := getvariable('m'), id := 'id') ORDER BY id, feature, class LIMIT 6",
+            ],
+        },
+        {
+            "description": "Rank the features by their dataset-wide (global) SHAP importance.",
+            "sql": [
+                _SET_M,
+                f"SELECT feature, rank, method FROM explain.main.feature_importance({_FEATURES}, "
+                "model := getvariable('m'), id := 'id') ORDER BY rank",
+            ],
+        },
+    ]
+)
 
 # VGI413/VGI408: the schema's ordered category registry (array order = display
 # order). Every function carries a `vgi.category` naming one of these slugs (wired
@@ -166,9 +190,9 @@ _CATEGORIES_JSON = json.dumps(
             "description": "Dataset-wide feature importance ranked by mean absolute SHAP value (or native).",
         },
         {
-            "name": "discovery",
-            "title": "Discovery",
-            "description": "Browsable, credential-free registries for exploring the worker's surface.",
+            "name": "reference",
+            "title": "Reference",
+            "description": "Browsable, model-free reference data about the worker's supported model families.",
         },
     ]
 )
@@ -186,12 +210,13 @@ _CATEGORIES_JSON = json.dumps(
 _AGENT_TEST_TASKS_JSON = json.dumps(
     [
         {
-            "name": "list-functions",
+            "name": "supported-model-families",
             "prompt": (
-                "This worker exposes a browsable registry view of its SHAP explanation functions. Using "
-                "that registry, return the names of all the functions it lists, in alphabetical order."
+                "This worker publishes a browsable, model-free reference of the model families it can "
+                "explain. Using that reference, return the names of every supported model family, in "
+                "alphabetical order."
             ),
-            "reference_sql": ("SELECT function_name FROM explain.main.shap_functions ORDER BY function_name"),
+            "reference_sql": ("SELECT model_family FROM explain.main.supported_models ORDER BY model_family"),
             "ignore_column_names": True,
         },
         {
@@ -313,104 +338,132 @@ _SCHEMA_TAGS = {
     "topic": "shap-model-explanations",
 }
 
-# VGI146: a worker with only table functions gives an agent nothing to browse — it
-# must know a function's arguments before it can retrieve any row. Expose a curated,
-# credential-free registry of the worker's functions as a plain VIEW (built from an
-# inline VALUES list, so it scans with no model and no network) that an agent can
-# `SELECT *` from to discover the surface. Rows mirror the schema's vgi.categories.
-_FUNCTION_REGISTRY_ROWS = [
+
+# VGI146: a table-function-only worker gives an agent nothing to SELECT before it
+# knows a function's arguments (and every function here needs a model BLOB). Expose
+# one model-free, credential-free REFERENCE view an agent can browse cold to learn
+# which model families this worker can explain and which SHAP explainer each uses.
+# This is genuine reference data (not a re-catalogue of the worker's own functions,
+# which VGI327 forbids), built from an inline VALUES list so it scans with no model
+# and no network. Rows mirror `vgi_explain.explain.explainer_kind`.
+_SUPPORTED_MODEL_ROWS = [
     (
-        "shap_values",
-        "table_function",
-        "local-explanations",
-        "Per-row, per-feature SHAP contributions in long format (why the model predicted each row).",
+        "Tree ensembles & trees",
+        "RandomForest, ExtraTrees, GradientBoosting, HistGradientBoosting, DecisionTree, "
+        "XGBoost (XGB*), LightGBM (LGBM*), CatBoost",
+        "TreeExplainer",
+        "exact",
+        "Exact, fast Shapley values read straight from the tree structure; needs no background sample.",
     ),
     (
-        "shap_base_value",
-        "table_function",
-        "base-value",
-        "The model expected (base) output that per-feature SHAP contributions add onto.",
+        "Linear models",
+        "LinearRegression, Ridge, Lasso, ElasticNet, LogisticRegression, SGDClassifier, SGDRegressor",
+        "LinearExplainer",
+        "exact",
+        "Closed-form attributions from the fitted coefficients over a small background sample.",
     ),
     (
-        "feature_importance",
-        "table_function",
-        "global-importance",
-        "Dataset-wide feature importance ranked by mean absolute SHAP value (or native importances).",
+        "Other estimators (fallback)",
+        "Any fitted estimator exposing predict / predict_proba (e.g. SVM, KNN, MLP)",
+        "KernelExplainer",
+        "approximate",
+        "Model-agnostic sampling fallback: slower and approximate, estimated over a sampled background.",
     ),
 ]
 
-_FUNCTION_REGISTRY_VALUES = ",\n    ".join(
-    "('{}', '{}', '{}', '{}')".format(name, kind, category, summary.replace("'", "''"))
-    for name, kind, category, summary in _FUNCTION_REGISTRY_ROWS
+_SUPPORTED_MODELS_VALUES = ",\n    ".join(
+    "('{}', '{}', '{}', '{}', '{}')".format(
+        family.replace("'", "''"),
+        estimators.replace("'", "''"),
+        explainer.replace("'", "''"),
+        exactness.replace("'", "''"),
+        notes.replace("'", "''"),
+    )
+    for family, estimators, explainer, exactness, notes in _SUPPORTED_MODEL_ROWS
 )
 
-_FUNCTION_REGISTRY_VIEW_SQL = (
-    "SELECT function_name, function_kind, category, summary FROM (VALUES\n"
-    f"    {_FUNCTION_REGISTRY_VALUES}\n"
-    ") AS t(function_name, function_kind, category, summary)"
+_SUPPORTED_MODELS_VIEW_SQL = (
+    "SELECT model_family, estimator_examples, shap_explainer, exactness, notes FROM (VALUES\n"
+    f"    {_SUPPORTED_MODELS_VALUES}\n"
+    ") AS t(model_family, estimator_examples, shap_explainer, exactness, notes)"
 )
 
-_FUNCTION_REGISTRY_VIEW = View(
-    name="shap_functions",
-    definition=_FUNCTION_REGISTRY_VIEW_SQL,
-    comment="Browsable registry of the SHAP explanation functions this worker exposes.",
+_SUPPORTED_MODELS_VIEW = View(
+    name="supported_models",
+    definition=_SUPPORTED_MODELS_VIEW_SQL,
+    comment="Model families this worker can explain and the SHAP explainer chosen for each.",
     column_comments={
-        "function_name": "Name of the table function in the `explain.main` schema.",
-        "function_kind": "The kind of SQL object (always `table_function` here).",
-        "category": "The function's category slug (see the schema's vgi.categories registry).",
-        "summary": "One-line description of what the function computes.",
+        "model_family": "Family of fitted estimator (tree ensemble, linear, or fallback).",
+        "estimator_examples": "Example scikit-learn / XGBoost estimator classes in this family.",
+        "shap_explainer": "The SHAP explainer this worker selects for the family.",
+        "exactness": "Whether the explanation is `exact` or an `approximate` (sampled) estimate.",
+        "notes": "How the explainer works and any caveats for the family.",
     },
     tags={
-        "vgi.title": "SHAP Functions Registry",
+        "vgi.title": "Supported Model Families",
         "vgi.doc_llm": (
-            "A zero-argument, credential-free **discovery view** listing the three SHAP explanation "
-            "table functions this worker exposes — `shap_values`, `shap_base_value`, and "
-            "`feature_importance` — with each function's kind, category slug, and a one-line summary. "
-            "Query it first to browse the worker's surface before calling a specific function (each of "
-            "which needs a model BLOB argument). Columns: `function_name`, `function_kind`, `category`, "
-            "`summary`."
+            "A zero-argument, model-free **reference view** of the model families this worker can "
+            "explain and the SHAP explainer it picks for each: tree ensembles / trees use "
+            "`TreeExplainer` (exact), linear models use `LinearExplainer` (exact), and every other "
+            "fitted estimator falls back to `KernelExplainer` (approximate). Query it cold — before "
+            "you have a model in hand — to check whether an estimator is supported and how exact its "
+            "explanations will be. Columns: `model_family`, `estimator_examples`, `shap_explainer`, "
+            "`exactness`, `notes`."
         ),
         "vgi.doc_md": (
-            "# shap_functions\n\n"
-            "A browsable registry of the SHAP explanation table functions this worker exposes. It "
-            "takes no arguments and needs no model, so it is the cheapest way to discover the surface "
-            "before calling a function.\n\n"
+            "# supported_models\n\n"
+            "A browsable, model-free reference of the estimator families this worker explains and the "
+            "SHAP explainer selected for each. It takes no arguments and needs no model, so it is the "
+            "cheapest way to check whether your estimator is supported before loading a model.\n\n"
             "## Columns\n\n"
-            "- `function_name` (VARCHAR) -- the table function's name in `explain.main`.\n"
-            "- `function_kind` (VARCHAR) -- the object kind (always `table_function`).\n"
-            "- `category` (VARCHAR) -- the function's category slug.\n"
-            "- `summary` (VARCHAR) -- a one-line description.\n\n"
-            "See the example queries for ready-to-run SQL."
+            "- `model_family` (`VARCHAR`) -- tree ensemble, linear, or fallback family.\n"
+            "- `estimator_examples` (`VARCHAR`) -- example estimator classes in the family.\n"
+            "- `shap_explainer` (`VARCHAR`) -- the SHAP explainer chosen (`TreeExplainer` / "
+            "`LinearExplainer` / `KernelExplainer`).\n"
+            "- `exactness` (`VARCHAR`) -- `exact` or `approximate`.\n"
+            "- `notes` (`VARCHAR`) -- how the explainer works and any caveats."
         ),
         "vgi.keywords": json.dumps(
-            ["registry", "functions", "discovery", "catalog", "shap", "explainability", "list functions"]
+            [
+                "supported models",
+                "model families",
+                "explainer",
+                "tree explainer",
+                "linear explainer",
+                "kernel explainer",
+                "reference",
+                "compatibility",
+                "shap",
+            ]
         ),
         # VGI411: assign the view to a category from the schema's vgi.categories registry.
-        "vgi.category": "discovery",
+        "vgi.category": "reference",
         # VGI123: bare (non-namespaced) classifying tags, matching the schema's.
         "domain": "machine-learning",
-        "topic": "shap-function-registry",
-        # VGI501/VGI511/VGI504/VGI505/VGI151: fully-qualified, model-free illustrative examples
-        # calling the view. These scan the inline VALUES registry with no model and no network, so
-        # they run cleanly under --execute and give humans/agents a browsable entry point.
+        "topic": "shap-supported-models",
+        # VGI501/VGI511/VGI514/VGI151: fully-qualified, projected, model-free example queries that
+        # scan the inline reference (no model, no network), so they run cleanly under --execute.
         "vgi.example_queries": json.dumps(
             [
                 {
-                    "description": "Browse the worker's SHAP functions and their categories.",
-                    "sql": "SELECT function_name, category, summary FROM explain.main.shap_functions ORDER BY category",
-                },
-                {
-                    "description": "Count how many functions fall in each category.",
+                    "description": "List every supported model family and the SHAP explainer chosen for it.",
                     "sql": (
-                        "SELECT category, count(*) AS function_count FROM explain.main.shap_functions "
-                        "GROUP BY category ORDER BY category"
+                        "SELECT model_family, shap_explainer, exactness FROM explain.main.supported_models "
+                        "ORDER BY model_family"
                     ),
                 },
                 {
-                    "description": "Find which function computes dataset-wide (global) feature importance.",
+                    "description": "Find which families get exact (rather than approximate) SHAP explanations.",
                     "sql": (
-                        "SELECT function_name, summary FROM explain.main.shap_functions "
-                        "WHERE category = 'global-importance'"
+                        "SELECT model_family, shap_explainer FROM explain.main.supported_models "
+                        "WHERE exactness = 'exact' ORDER BY model_family"
+                    ),
+                },
+                {
+                    "description": "Count the supported model families grouped by their SHAP explainer.",
+                    "sql": (
+                        "SELECT shap_explainer, count(*) AS family_count FROM explain.main.supported_models "
+                        "GROUP BY shap_explainer ORDER BY shap_explainer"
                     ),
                 },
             ]
@@ -430,7 +483,7 @@ _EXPLAIN_CATALOG = Catalog(
             comment="SHAP explanations for scikit-learn / XGBoost models as SQL functions",
             tags=_SCHEMA_TAGS,
             functions=list(EXPLAIN_FUNCTIONS),
-            views=[_FUNCTION_REGISTRY_VIEW],
+            views=[_SUPPORTED_MODELS_VIEW],
         ),
     ],
 )

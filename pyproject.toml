@@ -21,7 +21,7 @@ classifiers = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "vgi-python[http]>=0.16.0",
+    "vgi-python[http]>=0.30.0",
     "shap>=0.46",
     "scikit-learn>=1.5",
     "xgboost>=2.0",
@@ -80,7 +80,7 @@ dev = [
 # container can serve the worker over HTTP (/health + VGI RPC) via the
 # `vgi-explain-http` console script. The main deps already pull `vgi-python[http]`,
 # so this is the explicit, Docker-facing name for that capability.
-serve = ["vgi-python[http]>=0.16.0"]
+serve = ["vgi-python[http]>=0.30.0"]
 dev = [
     "pytest",
     "pyarrow",

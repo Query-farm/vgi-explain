@@ -45,6 +45,7 @@ def test_shap_values_long_format(client: Client) -> None:
     results = list(
         client.table_in_out_function(
             function_name="shap_values",
+            schema_path=["main"],
             input=iter([batch]),
             arguments=Arguments(
                 positional=(),
@@ -66,6 +67,7 @@ def test_shap_values_reconstructs_prediction(client: Client) -> None:
     results = list(
         client.table_in_out_function(
             function_name="shap_values",
+            schema_path=["main"],
             input=iter([batch]),
             arguments=Arguments(
                 positional=(), named={"model": pa.scalar(blob, type=pa.binary()), "id": pa.scalar("id")}
@@ -80,6 +82,7 @@ def test_shap_values_reconstructs_prediction(client: Client) -> None:
     base = list(
         client.table_function(
             function_name="shap_base_value",
+            schema_path=["main"],
             arguments=Arguments(positional=(), named={"model": pa.scalar(blob, type=pa.binary())}),
         )
     )
@@ -99,6 +102,7 @@ def test_feature_importance_ranks_signal_first(client: Client) -> None:
     results = list(
         client.table_buffering_function(
             function_name="feature_importance",
+            schema_path=["main"],
             input=iter([batch]),
             arguments=Arguments(
                 positional=(),
@@ -121,6 +125,7 @@ def test_shap_values_invalid_model_errors(client: Client) -> None:
         list(
             client.table_in_out_function(
                 function_name="shap_values",
+                schema_path=["main"],
                 input=iter([batch]),
                 arguments=Arguments(positional=(), named={"model": pa.scalar(b"garbage", type=pa.binary())}),
             )

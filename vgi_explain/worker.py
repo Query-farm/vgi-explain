@@ -198,15 +198,14 @@ _CATEGORIES_JSON = json.dumps(
 )
 
 # VGI152/VGI407: the agent-suitability suite (`vgi-lint simulate`). Each task is a
-# {name, prompt, reference_sql} object; `reference_sql` is a grader-only canonical
-# solution (a SET-VARIABLE step followed by the query) and is never shown to the
-# analyst. Prompts are natural-language and self-contained, naming the committed
-# fixtures the SQL E2E suite uses so an analyst can load the model exactly as the
-# docs describe. Every answer is a stable string / integer (feature names, class
-# labels, counts, the method label) so grading compares VALUES deterministically
-# (`ignore_column_names`). Facts are pinned by test/sql/*.test: rf_clf is a binary
-# classifier (classes 0/1), features are signal/noise_a/noise_b, and `signal` is
-# the informative feature (importance rank 1).
+# public {name, prompt} object. Prompts are natural-language and self-contained,
+# naming the committed fixtures the SQL E2E suite uses so an analyst can load the
+# model exactly as the docs describe. VGI416: the grader-only fields
+# (`reference_sql`, `ignore_column_names`) live in the private
+# `vgi-agent-tests.yaml` sidecar at the repo root, never in metadata. Every answer
+# is a stable string / integer, so grading compares VALUES. Facts are pinned by
+# test/sql/*.test: rf_clf is a binary classifier (classes 0/1), features are
+# signal/noise_a/noise_b, and `signal` is the informative feature (rank 1).
 _AGENT_TEST_TASKS_JSON = json.dumps(
     [
         {
@@ -216,8 +215,6 @@ _AGENT_TEST_TASKS_JSON = json.dumps(
                 "explain. Using that reference, return the names of every supported model family, in "
                 "alphabetical order."
             ),
-            "reference_sql": ("SELECT model_family FROM explain.main.supported_models ORDER BY model_family"),
-            "ignore_column_names": True,
         },
         {
             "name": "top-feature",
@@ -228,12 +225,6 @@ _AGENT_TEST_TASKS_JSON = json.dumps(
                 "the model into a session variable, then rank the model's features by global SHAP importance "
                 "and return only the name of the single most important feature."
             ),
-            "reference_sql": [
-                _SET_M,
-                f"SELECT feature FROM explain.main.feature_importance({_FEATURES}, "
-                "model := getvariable('m'), id := 'id') ORDER BY rank LIMIT 1",
-            ],
-            "ignore_column_names": True,
         },
         {
             "name": "base-value-class-count",
@@ -242,11 +233,6 @@ _AGENT_TEST_TASKS_JSON = json.dumps(
                 "classifier. Load it into a session variable and return how many rows (one per class) its SHAP "
                 "base-value output has."
             ),
-            "reference_sql": [
-                _SET_M,
-                "SELECT count(*) AS n FROM explain.main.shap_base_value(model := getvariable('m'))",
-            ],
-            "ignore_column_names": True,
         },
         {
             "name": "shap-feature-names",
@@ -256,12 +242,6 @@ _AGENT_TEST_TASKS_JSON = json.dumps(
                 "'test/fixtures/features.parquet' (columns id, signal, noise_a, noise_b). Return the distinct "
                 "feature names that appear in the output, in alphabetical order."
             ),
-            "reference_sql": [
-                _SET_M,
-                f"SELECT DISTINCT feature FROM explain.main.shap_values({_FEATURES}, "
-                "model := getvariable('m'), id := 'id') ORDER BY feature",
-            ],
-            "ignore_column_names": True,
         },
         {
             "name": "shap-class-labels",
@@ -271,12 +251,6 @@ _AGENT_TEST_TASKS_JSON = json.dumps(
                 "noise_a, noise_b), return the distinct class labels present in the per-row SHAP output, "
                 "ordered."
             ),
-            "reference_sql": [
-                _SET_M,
-                f"SELECT DISTINCT class FROM explain.main.shap_values({_FEATURES}, "
-                "model := getvariable('m'), id := 'id') ORDER BY class",
-            ],
-            "ignore_column_names": True,
         },
         {
             "name": "importance-method",
@@ -286,12 +260,6 @@ _AGENT_TEST_TASKS_JSON = json.dumps(
                 "'test/fixtures/features.parquet' (columns id, signal, noise_a, noise_b). Return the single "
                 "method label the function reports for how importance was computed."
             ),
-            "reference_sql": [
-                _SET_M,
-                f"SELECT DISTINCT method FROM explain.main.feature_importance({_FEATURES}, "
-                "model := getvariable('m'), id := 'id')",
-            ],
-            "ignore_column_names": True,
         },
     ]
 )
@@ -307,7 +275,7 @@ _CATALOG_TAGS = {
     "vgi.license": "MIT",
     "vgi.support_contact": "https://github.com/Query-farm/vgi-explain/issues",
     "vgi.support_policy_url": "https://github.com/Query-farm/vgi-explain/blob/main/README.md",
-    # VGI152/VGI407: agent-suitability suite (grader-only reference_sql per task).
+    # VGI152/VGI407: agent-suitability suite (public {name, prompt}; graders in vgi-agent-tests.yaml).
     "vgi.agent_test_tasks": _AGENT_TEST_TASKS_JSON,
 }
 
@@ -479,7 +447,7 @@ _EXPLAIN_CATALOG = Catalog(
     tags=_CATALOG_TAGS,
     schemas=[
         Schema(
-            name="main",
+            path=["main"],
             comment="SHAP explanations for scikit-learn / XGBoost models as SQL functions",
             tags=_SCHEMA_TAGS,
             functions=list(EXPLAIN_FUNCTIONS),

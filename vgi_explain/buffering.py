@@ -28,8 +28,7 @@ class DrainState(ArrowSerializableDataclass):
 def serialize_batch(batch: pa.RecordBatch) -> bytes:
     """Serialize one Arrow record batch to a self-describing IPC stream."""
     sink = pa.BufferOutputStream()
-    # pyarrow's bundled stubs leave new_stream untyped.
-    with pa.ipc.new_stream(sink, batch.schema) as writer:  # type: ignore[no-untyped-call]
+    with pa.ipc.new_stream(sink, batch.schema) as writer:
         writer.write_batch(batch)
     data: bytes = sink.getvalue().to_pybytes()
     return data
@@ -37,8 +36,7 @@ def serialize_batch(batch: pa.RecordBatch) -> bytes:
 
 def deserialize_batches(value: bytes) -> list[pa.RecordBatch]:
     """Read back the record batches written by :func:`serialize_batch`."""
-    # pyarrow's bundled stubs leave open_stream untyped.
-    reader = pa.ipc.open_stream(pa.BufferReader(value))  # type: ignore[no-untyped-call]
+    reader = pa.ipc.open_stream(pa.BufferReader(value))
     batches: list[pa.RecordBatch] = reader.read_all().to_batches()
     return batches
 
@@ -71,6 +69,6 @@ class SinkBuffer[TArgs, TState](TableBufferingFunction[TArgs, TState]):
 
 def input_schema_of(params: Any) -> pa.Schema:
     """Input schema from a process/finalize params object."""
-    schema = params.init_call.bind_call.input_schema
+    schema: pa.Schema | None = params.init_call.bind_call.input_schema
     assert schema is not None
     return schema

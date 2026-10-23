@@ -287,7 +287,7 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
                     f"model features: {', '.join(meta.feature_names)}; "
                     f"input columns: {', '.join(input_schema.names)}"
                 )
-        fields: list[pa.Field] = []
+        fields: list[pa.Field[Any]] = []
         if a.id:
             fields.append(input_schema.field(a.id))
         else:

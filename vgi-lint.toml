@@ -7,7 +7,7 @@
 # raised "slow example" threshold, and are run serially so the explainer warms up
 # exactly once (on the first call) and every later query runs warm.
 #
-# Auto-discovered from the repo root by both the CI `Query-farm/vgi-lint-check@v1`
+# Auto-discovered from the repo root by both the CI `Query-farm/vgi-lint-check@v2`
 # action and a local `vgi-lint` run.
 [execution]
 timeout = 120

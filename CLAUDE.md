@@ -71,7 +71,7 @@ shared `pack_model`). Regenerate with `make fixture`.
 
 ## haybarn / SQL test gotchas
 
-- `uv tool install haybarn-unittest`; `export PATH="$HOME/.local/bin:$PATH"`.
+- `uv tool install --prerelease allow 'haybarn-unittest>=2.0.0rc11,<2.1'`; `export PATH="$HOME/.local/bin:$PATH"`.
 - `require vgi` SILENTLY SKIPS — use explicit `statement ok` + `LOAD vgi;`.
 - Files `test/sql/*.test`, header `# name:` + `# group: [vgi_explain]`, GLOB.
 - `require-env VGI_EXPLAIN_WORKER`; `ATTACH 'explain' AS explain (TYPE vgi,

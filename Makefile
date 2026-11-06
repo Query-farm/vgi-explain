@@ -9,7 +9,10 @@
 # test-sql is self-contained: it points VGI_EXPLAIN_WORKER at the worker run as a
 # uv stdio subprocess (exactly how DuckDB drives it after ATTACH) and runs the
 # files under test/sql/. haybarn-unittest is a uv tool:
-#   uv tool install 'haybarn-unittest<2'   # installs ~/.local/bin/haybarn-unittest
+#   uv tool install --prerelease allow 'haybarn-unittest>=2.0.0rc11,<2.1'   # installs ~/.local/bin/haybarn-unittest
+# haybarn 2.0 is required: its community `vgi` extension is the one that speaks the
+# worker's VGI protocol (vgi.v3 / 3.1). --keep-home lets the runner see the
+# extensions installed under the real $HOME (haybarn-unittest 2.0 isolates it).
 
 # Worker command DuckDB uses for ATTACH (overridable). Use the installed console
 # script in the project venv (what CI attaches) rather than `uv run
@@ -31,7 +34,7 @@ test-unit:
 test-sql:
 	PATH="$(HAYBARN_BIN):$$PATH" \
 		VGI_EXPLAIN_WORKER="$(WORKER_STDIO)" \
-		haybarn-unittest --test-dir "$(TEST_DIR)" "$(TEST_PATTERN)"
+		haybarn-unittest --keep-home --test-dir "$(TEST_DIR)" "$(TEST_PATTERN)"
 
 fixture:
 	uv run --no-sync python scripts/make_fixture.py

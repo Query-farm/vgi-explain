@@ -24,7 +24,7 @@ statement ok
 LOAD parquet;
 
 statement ok
-ATTACH 'explain' AS explain (TYPE vgi, LOCATION '${VGI_EXPLAIN_WORKER}');
+ATTACH 'explain' AS explain (TYPE vgi, LOCATION '{VGI_EXPLAIN_WORKER}');
 
 # The model BLOBs come from a committed parquet fixture produced by
 # scripts/make_fixture.py (vgi-explain has no fit(); it consumes the BLOB that

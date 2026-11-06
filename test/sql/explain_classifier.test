@@ -20,7 +20,7 @@ statement ok
 LOAD parquet;
 
 statement ok
-ATTACH 'explain' AS explain (TYPE vgi, LOCATION '${VGI_EXPLAIN_WORKER}');
+ATTACH 'explain' AS explain (TYPE vgi, LOCATION '{VGI_EXPLAIN_WORKER}');
 
 statement ok
 CREATE TEMP VIEW models AS SELECT * FROM read_parquet('test/fixtures/models.parquet');

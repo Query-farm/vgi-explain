@@ -45,11 +45,8 @@ jobs:
         run: uv run --no-sync pytest -q
 
   # The worker speaks VGI protocol vgi.v3 (3.1), which only the haybarn 2.0
-
   # community `vgi` extension accepts. haybarn 2.0 is RC-only, so `gh release
-
   # view` (no tag) still returns the 1.5 line: pick the newest haybarn-v2.0.* tag.
-
   # Resolve the latest published haybarn release once, so the whole matrix tests
   # the same version (and we never hardcode/pin it).
   resolve-haybarn:

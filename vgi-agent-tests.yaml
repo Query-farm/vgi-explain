@@ -7,26 +7,26 @@ tasks:
     ignore_column_names: true
   - name: top-feature
     reference_sql:
-      - "SET VARIABLE m = (SELECT model FROM read_parquet('test/fixtures/models.parquet') WHERE name = 'rf_clf')"
-      - "SELECT feature FROM explain.main.feature_importance((SELECT id, signal, noise_a, noise_b FROM read_parquet('test/fixtures/features.parquet')), model := getvariable('m'), id := 'id') ORDER BY rank LIMIT 1"
+      - "SET VARIABLE m = (SELECT model FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/models.parquet') WHERE name = 'rf_clf')"
+      - "SELECT feature FROM explain.main.feature_importance((SELECT id, signal, noise_a, noise_b FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/features.parquet')), model := getvariable('m'), id := 'id') ORDER BY rank LIMIT 1"
     ignore_column_names: true
   - name: base-value-class-count
     reference_sql:
-      - "SET VARIABLE m = (SELECT model FROM read_parquet('test/fixtures/models.parquet') WHERE name = 'rf_clf')"
+      - "SET VARIABLE m = (SELECT model FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/models.parquet') WHERE name = 'rf_clf')"
       - "SELECT count(*) AS n FROM explain.main.shap_base_value(model := getvariable('m'))"
     ignore_column_names: true
   - name: shap-feature-names
     reference_sql:
-      - "SET VARIABLE m = (SELECT model FROM read_parquet('test/fixtures/models.parquet') WHERE name = 'rf_clf')"
-      - "SELECT DISTINCT feature FROM explain.main.shap_values((SELECT id, signal, noise_a, noise_b FROM read_parquet('test/fixtures/features.parquet')), model := getvariable('m'), id := 'id') ORDER BY feature"
+      - "SET VARIABLE m = (SELECT model FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/models.parquet') WHERE name = 'rf_clf')"
+      - "SELECT DISTINCT feature FROM explain.main.shap_values((SELECT id, signal, noise_a, noise_b FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/features.parquet')), model := getvariable('m'), id := 'id') ORDER BY feature"
     ignore_column_names: true
   - name: shap-class-labels
     reference_sql:
-      - "SET VARIABLE m = (SELECT model FROM read_parquet('test/fixtures/models.parquet') WHERE name = 'rf_clf')"
-      - "SELECT DISTINCT class FROM explain.main.shap_values((SELECT id, signal, noise_a, noise_b FROM read_parquet('test/fixtures/features.parquet')), model := getvariable('m'), id := 'id') ORDER BY class"
+      - "SET VARIABLE m = (SELECT model FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/models.parquet') WHERE name = 'rf_clf')"
+      - "SELECT DISTINCT class FROM explain.main.shap_values((SELECT id, signal, noise_a, noise_b FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/features.parquet')), model := getvariable('m'), id := 'id') ORDER BY class"
     ignore_column_names: true
   - name: importance-method
     reference_sql:
-      - "SET VARIABLE m = (SELECT model FROM read_parquet('test/fixtures/models.parquet') WHERE name = 'rf_clf')"
-      - "SELECT DISTINCT method FROM explain.main.feature_importance((SELECT id, signal, noise_a, noise_b FROM read_parquet('test/fixtures/features.parquet')), model := getvariable('m'), id := 'id')"
+      - "SET VARIABLE m = (SELECT model FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/models.parquet') WHERE name = 'rf_clf')"
+      - "SELECT DISTINCT method FROM explain.main.feature_importance((SELECT id, signal, noise_a, noise_b FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/features.parquet')), model := getvariable('m'), id := 'id')"
     ignore_column_names: true

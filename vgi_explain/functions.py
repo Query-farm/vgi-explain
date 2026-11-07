@@ -61,12 +61,15 @@ from .schema_utils import field as sfield
 # one every docstring shows — is to hold it in a session VARIABLE and reference it
 # with `getvariable('m')`. Each executable example is therefore a TWO-statement
 # list: a `SET VARIABLE` step followed by the query, run in order against the same
-# connection, so the strict linter EXECUTES them cleanly from the repo working
-# directory. Each function also carries a fully-qualified `vgi.example_queries`
+# connection. The fixtures are read over HTTPS from a pinned release tag (httpfs
+# autoloads), so every example runs from any directory with no repo checkout.
+# Each function also carries a fully-qualified `vgi.example_queries`
 # entry (shown, not executed) that opens with the same `SET VARIABLE` step, so the
 # illustrative SQL is complete and copy-runnable.
-_RF_MODEL = "(SELECT model FROM read_parquet('test/fixtures/models.parquet') WHERE name = 'rf_clf')"
-_FEATURES = "(SELECT id, signal, noise_a, noise_b FROM read_parquet('test/fixtures/features.parquet'))"
+# Committed fixtures, pinned to a released tag (never `main`) so the URL is immutable.
+FIXTURES_URL = "https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures"
+_RF_MODEL = f"(SELECT model FROM read_parquet('{FIXTURES_URL}/models.parquet') WHERE name = 'rf_clf')"
+_FEATURES = f"(SELECT id, signal, noise_a, noise_b FROM read_parquet('{FIXTURES_URL}/features.parquet'))"
 _SET_MODEL = f"SET VARIABLE m = {_RF_MODEL}"
 
 

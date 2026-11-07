@@ -28,7 +28,7 @@ from vgi.catalog import Catalog, ReadOnlyCatalogInterface, Schema, View
 from vgi.catalog.catalog_interface import CatalogAttachResult, CatalogInfo
 
 from vgi_explain import __version__
-from vgi_explain.functions import EXPLAIN_FUNCTIONS
+from vgi_explain.functions import EXPLAIN_FUNCTIONS, FIXTURES_URL
 
 log = logging.getLogger(__name__)
 
@@ -127,14 +127,17 @@ _CATALOG_KEYWORDS = [
 ]
 
 # Catalog-qualified SQL fragments selecting a committed model BLOB / feature
-# relation from the repo's test fixtures. The model BLOB cannot be inlined as a
+# relation from the repo's test fixtures, read over HTTPS at a pinned tag so they
+# run without a checkout. The model BLOB cannot be inlined as a
 # scalar subquery (DuckDB forbids subquery arguments to table functions), so it is
 # held in a session VARIABLE and read with getvariable('m') — the idiomatic
 # pattern shown throughout the docs.
-_RF_MODEL = "(SELECT model FROM read_parquet('test/fixtures/models.parquet') WHERE name = 'rf_clf')"
-_FEATURES = "(SELECT id, signal, noise_a, noise_b FROM read_parquet('test/fixtures/features.parquet'))"
+_RF_MODEL = f"(SELECT model FROM read_parquet('{FIXTURES_URL}/models.parquet') WHERE name = 'rf_clf')"
+_FEATURES = f"(SELECT id, signal, noise_a, noise_b FROM read_parquet('{FIXTURES_URL}/features.parquet'))"
 
 _SET_M = f"SET VARIABLE m = {_RF_MODEL}"
+_MODELS_URL = f"{FIXTURES_URL}/models.parquet"
+_FEATURES_URL = f"{FIXTURES_URL}/features.parquet"
 
 # VGI515: schema-level example queries as a JSON list of {description, sql} objects
 # (each description non-empty). The model BLOB cannot be inlined (DuckDB forbids
@@ -220,8 +223,8 @@ _AGENT_TEST_TASKS_JSON = json.dumps(
             "name": "top-feature",
             "prompt": (
                 "A fitted RandomForest classifier is stored as a model BLOB in the committed fixture "
-                "'test/fixtures/models.parquet' (the row WHERE name = 'rf_clf'), and a matching feature "
-                "matrix (columns id, signal, noise_a, noise_b) is in 'test/fixtures/features.parquet'. Load "
+                f"'{_MODELS_URL}' (the row WHERE name = 'rf_clf'), and a matching feature "
+                f"matrix (columns id, signal, noise_a, noise_b) is in '{_FEATURES_URL}'. Load "
                 "the model into a session variable, then rank the model's features by global SHAP importance "
                 "and return only the name of the single most important feature."
             ),
@@ -229,7 +232,7 @@ _AGENT_TEST_TASKS_JSON = json.dumps(
         {
             "name": "base-value-class-count",
             "prompt": (
-                "The model BLOB in fixture 'test/fixtures/models.parquet' (WHERE name = 'rf_clf') is a binary "
+                f"The model BLOB in fixture '{_MODELS_URL}' (WHERE name = 'rf_clf') is a binary "
                 "classifier. Load it into a session variable and return how many rows (one per class) its SHAP "
                 "base-value output has."
             ),
@@ -237,17 +240,17 @@ _AGENT_TEST_TASKS_JSON = json.dumps(
         {
             "name": "shap-feature-names",
             "prompt": (
-                "Load the model BLOB from 'test/fixtures/models.parquet' (WHERE name = 'rf_clf') into a session "
+                f"Load the model BLOB from '{_MODELS_URL}' (WHERE name = 'rf_clf') into a session "
                 "variable and compute per-row SHAP contributions for the feature rows in "
-                "'test/fixtures/features.parquet' (columns id, signal, noise_a, noise_b). Return the distinct "
+                f"'{_FEATURES_URL}' (columns id, signal, noise_a, noise_b). Return the distinct "
                 "feature names that appear in the output, in alphabetical order."
             ),
         },
         {
             "name": "shap-class-labels",
             "prompt": (
-                "Using the binary-classifier model BLOB in 'test/fixtures/models.parquet' (WHERE name = "
-                "'rf_clf') and the feature rows in 'test/fixtures/features.parquet' (columns id, signal, "
+                f"Using the binary-classifier model BLOB in '{_MODELS_URL}' (WHERE name = "
+                f"'rf_clf') and the feature rows in '{_FEATURES_URL}' (columns id, signal, "
                 "noise_a, noise_b), return the distinct class labels present in the per-row SHAP output, "
                 "ordered."
             ),
@@ -255,9 +258,9 @@ _AGENT_TEST_TASKS_JSON = json.dumps(
         {
             "name": "importance-method",
             "prompt": (
-                "Load the model BLOB from 'test/fixtures/models.parquet' (WHERE name = 'rf_clf') into a session "
+                f"Load the model BLOB from '{_MODELS_URL}' (WHERE name = 'rf_clf') into a session "
                 "variable and compute global feature importance over the non-empty feature relation in "
-                "'test/fixtures/features.parquet' (columns id, signal, noise_a, noise_b). Return the single "
+                f"'{_FEATURES_URL}' (columns id, signal, noise_a, noise_b). Return the single "
                 "method label the function reports for how importance was computed."
             ),
         },

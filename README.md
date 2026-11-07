@@ -20,7 +20,7 @@ without leaving your query.
 ```sql
 INSTALL vgi FROM community; LOAD vgi;
 ATTACH 'sklearn' (TYPE vgi, LOCATION 'vgi-sklearn');
-ATTACH 'explain' (TYPE vgi, LOCATION 'vgi-explain');   -- 'uv run explain_worker.py' from a checkout
+ATTACH 'explain' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-explain@v0.2.0 vgi-explain');
 
 -- train a model with vgi-sklearn (or vgi-xgboost), keep the model BLOB it returns
 CREATE TABLE model AS
@@ -39,6 +39,36 @@ SELECT * FROM explain.shap_values(
 ORDER BY id, feature
 LIMIT 10;
 ```
+
+## Quick start
+
+The worker isn't on PyPI; [uv](https://docs.astral.sh/uv/) runs it straight from a tagged release on GitHub. `uvx` builds an isolated environment on the first ATTACH and reuses it afterwards:
+
+```sql
+INSTALL vgi FROM community;
+LOAD vgi;
+
+ATTACH 'explain' AS explain (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-explain@v0.2.0 vgi-explain');
+
+-- List every supported model family and the SHAP explainer chosen for it.
+SELECT model_family, shap_explainer, exactness FROM explain.main.supported_models ORDER BY model_family;
+```
+
+Change `@v0.2.0` to move to a newer release.
+
+### Other ways to run it
+
+- **Docker** (the image bundles the worker and its dependencies):
+
+  ```sql
+  ATTACH 'explain' AS explain (TYPE vgi, LOCATION 'docker://ghcr.io/query-farm/vgi-explain:0.2.0');
+  ```
+
+- **From a local checkout** (`git clone https://github.com/Query-farm/vgi-explain`), point `LOCATION` at `uv run --project /path/to/vgi-explain vgi-explain`.
+
+### Build from source
+
+To build the worker yourself, see [Development](#development).
 
 ## How it works
 

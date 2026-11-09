@@ -1,6 +1,6 @@
 [project]
 name = "vgi-explain"
-version = "0.2.1"
+version = "0.3.0"
 description = "A VGI (Vector Gateway Interface) worker computing SHAP explanations for scikit-learn / XGBoost models as DuckDB/SQL functions"
 readme = "README.md"
 license = "MIT"

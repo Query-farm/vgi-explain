@@ -269,6 +269,9 @@ _AGENT_TEST_TASKS_JSON = json.dumps(
 
 _CATALOG_TAGS = {
     "vgi.title": "SHAP Model Explanations",
+    "vgi.subtitle": (
+        "Explain scikit-learn and XGBoost model predictions with per-row SHAP values and global feature importance."
+    ),
     "vgi.keywords": json.dumps(_CATALOG_KEYWORDS),
     "vgi.doc_llm": _CATALOG_DESCRIPTION_LLM,
     "vgi.doc_md": _CATALOG_DESCRIPTION_MD,
@@ -283,7 +286,7 @@ _CATALOG_TAGS = {
 }
 
 _SCHEMA_TAGS = {
-    "vgi.title": "Explain — SHAP Functions",
+    "vgi.title": "SHAP Functions",
     "vgi.keywords": json.dumps(
         [
             "shap",

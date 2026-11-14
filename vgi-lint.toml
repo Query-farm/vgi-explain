@@ -9,7 +9,14 @@
 #
 # Auto-discovered from the repo root by both the CI `Query-farm/vgi-lint-check@v2`
 # action and a local `vgi-lint` run.
+#
+# mode = "run": every example opens with `SET VARIABLE m = …` (DuckDB forbids a
+# subquery `model` argument), and a function's `vgi.example_queries` entry is one
+# SQL string, so those examples are `SET VARIABLE …; SELECT …` scripts. The default
+# "explain" mode prefixes EXPLAIN, which skips the SET and then runs the query with
+# no model; "run" executes the script as written.
 [execution]
+mode = "run"
 timeout = 120
 slow_seconds = 30
 concurrency = 1

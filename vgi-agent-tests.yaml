@@ -30,3 +30,13 @@ tasks:
       - "SET VARIABLE m = (SELECT model FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/models.parquet') WHERE name = 'rf_clf')"
       - "SELECT DISTINCT method FROM explain.main.feature_importance((SELECT id, signal, noise_a, noise_b FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/features.parquet')), model := getvariable('m'), id := 'id')"
     ignore_column_names: true
+  - name: reconstructed-probability-count
+    reference_sql:
+      - "SET VARIABLE m = (SELECT model FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/models.parquet') WHERE name = 'rf_clf')"
+      - "SELECT count(*) FILTER (WHERE (SELECT base_value FROM explain.main.shap_base_value(model := getvariable('m')) WHERE class = '1') + s.total >= 0.5) AS n FROM (SELECT id, sum(shap_value) AS total FROM explain.main.shap_values((SELECT id, signal, noise_a, noise_b FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/features.parquet')), model := getvariable('m'), id := 'id') WHERE class = '1' GROUP BY id) AS s"
+    ignore_column_names: true
+  - name: second-feature-positive-rows
+    reference_sql:
+      - "SET VARIABLE m = (SELECT model FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/models.parquet') WHERE name = 'rf_clf')"
+      - "SELECT count(*) AS n FROM explain.main.shap_values((SELECT id, signal, noise_a, noise_b FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/features.parquet')), model := getvariable('m'), id := 'id') AS s WHERE s.class = '1' AND s.shap_value > 0 AND s.feature = (SELECT feature FROM explain.main.feature_importance((SELECT id, signal, noise_a, noise_b FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/features.parquet')), model := getvariable('m'), id := 'id') WHERE rank = 2)"
+    ignore_column_names: true

@@ -59,6 +59,62 @@ SELECT count(*) FROM explain.shap_base_value(model := getvariable('c'));
 ----
 2
 
+# ---- composed: SHAP additivity. base_value + sum(shap) per class reproduces the
+# RandomForest's predict_proba, so the reconstructed class-1 probabilities are the
+# forest's vote shares (multiples of 0.04 for 25 trees); the least certain rows sit
+# 0.38 from 0.5, and 30 of 60 rows reach 0.5.
+query IR
+SELECT c.id, round(b.base_value + c.total_shap, 4) AS predicted_proba
+FROM (SELECT id, class, sum(shap_value) AS total_shap
+      FROM explain.shap_values((SELECT * FROM feats), model := getvariable('c'), id := 'id')
+      GROUP BY id, class) AS c
+JOIN explain.shap_base_value(model := getvariable('c')) AS b ON c.class IS NOT DISTINCT FROM b.class
+WHERE c.class = '1'
+ORDER BY round(abs(b.base_value + c.total_shap - 0.5), 4), c.id
+LIMIT 5;
+----
+15	0.12
+31	0.88
+11	0.08
+24	0.08
+27	0.08
+
+query I
+SELECT count(*) FILTER (WHERE b.base_value + c.total_shap >= 0.5)
+FROM (SELECT id, class, sum(shap_value) AS total_shap
+      FROM explain.shap_values((SELECT * FROM feats), model := getvariable('c'), id := 'id')
+      GROUP BY id, class) AS c
+JOIN explain.shap_base_value(model := getvariable('c')) AS b ON c.class = b.class
+WHERE c.class = '1';
+----
+30
+
+# ---- composed: global rank vs dominant local driver. signal dominates every row.
+query TII
+WITH dominant AS (
+  SELECT id, arg_max(feature, abs(shap_value)) AS feature
+  FROM explain.shap_values((SELECT * FROM feats), model := getvariable('c'), id := 'id')
+  WHERE class = '1' GROUP BY id)
+SELECT g.feature, g.rank, count(d.id) AS rows_dominated
+FROM explain.feature_importance((SELECT * FROM feats), model := getvariable('c'), id := 'id') AS g
+LEFT JOIN dominant AS d ON d.feature = g.feature
+GROUP BY g.feature, g.rank
+ORDER BY g.rank;
+----
+signal	1	60
+noise_b	2	0
+noise_a	3	0
+
+# the second-ranked feature pushes toward class 1 in 34 of the 60 rows
+query I
+SELECT count(*)
+FROM explain.shap_values((SELECT * FROM feats), model := getvariable('c'), id := 'id') AS s
+JOIN explain.feature_importance((SELECT * FROM feats), model := getvariable('c'), id := 'id') AS g
+  ON g.feature = s.feature AND g.rank = 2
+WHERE s.class = '1' AND s.shap_value > 0;
+----
+34
+
 # ---- robustness: a garbage model BLOB yields a clear error, never a crash ----
 statement ok
 SET VARIABLE bad = 'not-a-model'::BLOB;

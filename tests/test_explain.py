@@ -89,3 +89,32 @@ def test_long_uses_row_index_without_ids() -> None:
     # single-output -> class is None, ids fall back to 0..n-1
     assert set(long["class"]) == {None}
     assert sorted(set(long["id"])) == [0, 1, 2]
+
+
+def test_binary_classifier_class_column_depends_on_explainer_output() -> None:
+    """Binary classifiers are NOT uniformly single-output (the docs used to claim so).
+
+    Probability-averaging trees report one output per class, so ``class`` is
+    labelled ('0'/'1'); single-margin models report one output with ``class`` NULL.
+    """
+    from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.tree import DecisionTreeClassifier
+    from xgboost import XGBClassifier
+
+    x, _, _ = dataset()
+    y = (x[:, 0] > np.median(x[:, 0])).astype(int)
+    per_class = [RandomForestClassifier(n_estimators=5, random_state=0), DecisionTreeClassifier(random_state=0)]
+    single = [
+        LogisticRegression(),
+        GradientBoostingClassifier(n_estimators=5, random_state=0),
+        XGBClassifier(n_estimators=5),
+    ]
+    for est in per_class:
+        res = compute_shap(est.fit(x, y), x[:4], classes=[0, 1])
+        assert res.values.shape == (4, 3, 2), type(est).__name__
+        assert set(shap_long(res, ids=[], feature_names=FEATURES)["class"]) == {0, 1}
+    for est in single:
+        res = compute_shap(est.fit(x, y), x[:4], classes=[0, 1])
+        assert res.values.shape == (4, 3, 1), type(est).__name__
+        assert set(shap_long(res, ids=[], feature_names=FEATURES)["class"]) == {None}

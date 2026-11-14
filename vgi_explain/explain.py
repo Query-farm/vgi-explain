@@ -11,11 +11,14 @@ Explainer selection by model type:
   ``shap.LinearExplainer``
 * everything else -> ``shap.KernelExplainer`` (model-agnostic fallback)
 
-Multi-class convention: a classifier with K>2 classes yields a SHAP value per
-class. ``shap_long`` emits a ``class`` column (the class label) so every
-(row, feature, class) contribution is addressable; ``base_values`` returns one
-row per class. Regression and binary classification collapse to a single class
-(``class`` = NULL / the positive class), one contribution per (row, feature).
+Class convention: whenever the explainer yields a SHAP value per class --
+every K>2 classifier, and binary classifiers explained on ``predict_proba``
+(RandomForest / ExtraTrees / DecisionTree, the KernelExplainer fallback) --
+``shap_long`` emits a ``class`` column (the class label) so every
+(row, feature, class) contribution is addressable, and ``base_values`` has one
+entry per class. Regression and binary classifiers explained on a single margin
+(XGBoost / GradientBoosting / HistGradientBoosting / LogisticRegression) have a
+single output (``class`` = NULL), one contribution per (row, feature).
 
 Importing shap is expensive, so this module is imported once at worker load.
 """
@@ -77,7 +80,7 @@ class ShapResult:
     Attributes:
         values: Array of shape ``(n_rows, n_features, n_classes)`` -- per-row,
             per-feature contribution for each output (class). ``n_classes`` is 1
-            for regression and binary classification.
+            for single-output models (regression, single-margin binary classifiers).
         base_values: Array of shape ``(n_classes,)`` -- the explainer's expected
             value per output. ``values[i, :, k].sum() + base_values[k]`` ~ the
             model output for row ``i``, output ``k`` (additivity).

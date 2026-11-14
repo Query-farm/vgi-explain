@@ -107,7 +107,7 @@ Long format: **one row per (input row × feature [× class])**.
 | ------------ | -------- | ------------------------------------------------------ |
 | *id*         | (passthrough) | your id column (or a 0-based row index if omitted) |
 | `feature`    | VARCHAR  | feature name                                           |
-| `class`      | VARCHAR  | class label, or NULL for regression / binary           |
+| `class`      | VARCHAR  | class label, or NULL for a single-output model         |
 | `shap_value` | DOUBLE   | signed contribution toward the model output            |
 
 **Additivity:** for any row, `sum(shap_value) + base_value ≈ model output` (the
@@ -116,7 +116,8 @@ raw margin / score the model produces for that row).
 ### `shap_base_value(model := <BLOB>)`
 
 The explainer's expected value — the anchor SHAP values add onto. One row, or
-one row per class for a multi-class classifier (`class`, `base_value`).
+one row per class when the model reports per-class output (see
+[Class behavior](#class-behavior)); columns `class`, `base_value`.
 
 ### `feature_importance((SELECT …), model := <BLOB>, id := 'id')`
 
@@ -126,13 +127,48 @@ relation it falls back to the model's **native importances**
 (`feature_importances_` or `|coef_|`, `method = 'native'`). Columns: `feature`,
 `importance`, `rank`, `method`.
 
-## Multi-class behavior
+## Class behavior
 
-For a classifier with **K > 2** classes, SHAP produces a contribution per class.
-`shap_values` emits a `class` column carrying the class label, so every
-`(row, feature, class)` contribution is addressable, and `shap_base_value`
-returns one row per class. Regression and **binary** classification collapse to a
-single output: `class` is `NULL`, one contribution per `(row, feature)`.
+When the explainer reports a contribution per class, `shap_values` emits a
+`class` column carrying the class label, so every `(row, feature, class)`
+contribution is addressable, and `shap_base_value` returns one row per class.
+That is every classifier with **K > 2** classes, and **binary** classifiers
+explained on probabilities — scikit-learn RandomForest / ExtraTrees /
+DecisionTree and the KernelExplainer fallback report both class `0` and class `1`.
+
+Regression and binary classifiers explained on a single margin (XGBoost,
+GradientBoosting, HistGradientBoosting, LogisticRegression) have one output:
+`class` is `NULL`, one contribution per `(row, feature)`.
+
+## Combining the functions
+
+The functions compose like any other table. Because of SHAP additivity, joining
+`shap_values` to `shap_base_value` on `class` reconstructs each row's model output
+— here the predicted class-1 probability of the binary RandomForest in the
+committed test fixtures, listing the rows it is least sure about:
+
+```sql
+SET VARIABLE m = (SELECT model FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/models.parquet') WHERE name = 'rf_clf');
+
+WITH contrib AS (
+  SELECT id, class, sum(shap_value) AS total_shap
+  FROM explain.main.shap_values(
+    (SELECT id, signal, noise_a, noise_b
+     FROM read_parquet('https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures/features.parquet')),
+    model := getvariable('m'), id := 'id')
+  GROUP BY id, class)
+SELECT c.id, round(b.base_value + c.total_shap, 4) AS predicted_proba
+FROM contrib AS c
+JOIN explain.main.shap_base_value(model := getvariable('m')) AS b
+  ON c.class IS NOT DISTINCT FROM b.class
+WHERE c.class = '1'
+ORDER BY round(abs(b.base_value + c.total_shap - 0.5), 4), c.id
+LIMIT 5;
+```
+
+`feature_importance` joins the same way: put its global `rank` next to per-row
+`shap_values` to see which feature drives each prediction. The schema's and each
+function's example queries include those patterns.
 
 ## Development
 

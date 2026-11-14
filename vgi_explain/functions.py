@@ -16,9 +16,13 @@ so the model travels as a scalar -- typically a session VARIABLE:
 * ``feature_importance`` (buffering) -- global mean(|shap|) over the passed
   relation; with no rows, falls back to the model's native importances.
 
-Multi-class behavior: for a classifier with K>2 classes each function reports a
-contribution per class via a ``class`` column (the class label); regression and
-binary classification collapse to a single output (``class`` = NULL).
+Class behavior: whenever the explainer reports one output per class each
+function emits a row per class with the label in a ``class`` column -- every
+K>2 classifier, and binary classifiers explained on ``predict_proba``
+(RandomForest / ExtraTrees / DecisionTree, the KernelExplainer fallback).
+Regression and binary classifiers explained on a single margin (XGBoost,
+GradientBoosting, HistGradientBoosting, LogisticRegression) have one output and
+``class`` = NULL.
 """
 
 from __future__ import annotations
@@ -63,14 +67,120 @@ from .schema_utils import field as sfield
 # list: a `SET VARIABLE` step followed by the query, run in order against the same
 # connection. The fixtures are read over HTTPS from a pinned release tag (httpfs
 # autoloads), so every example runs from any directory with no repo checkout.
-# Each function also carries a fully-qualified `vgi.example_queries`
-# entry (shown, not executed) that opens with the same `SET VARIABLE` step, so the
-# illustrative SQL is complete and copy-runnable.
+# Each function also carries `vgi.example_queries` (what the agent simulator shows,
+# first five per function) rendered as one `SET VARIABLE …; SELECT …` script per
+# entry, so the illustrative SQL is complete and copy-runnable (vgi-lint runs it in
+# `mode = "run"`, see vgi-lint.toml).
 # Committed fixtures, pinned to a released tag (never `main`) so the URL is immutable.
 FIXTURES_URL = "https://raw.githubusercontent.com/Query-farm/vgi-explain/v0.2.0/test/fixtures"
 _RF_MODEL = f"(SELECT model FROM read_parquet('{FIXTURES_URL}/models.parquet') WHERE name = 'rf_clf')"
 _FEATURES = f"(SELECT id, signal, noise_a, noise_b FROM read_parquet('{FIXTURES_URL}/features.parquet'))"
 _SET_MODEL = f"SET VARIABLE m = {_RF_MODEL}"
+
+# The canonical single-function query for each function. Each backs that
+# function's `vgi.executable_examples` entry, its `vgi.example_queries` list and
+# the schema-level list in worker.py, so the SQL is defined exactly once.
+SHAP_VALUES_SQL = (
+    f"SELECT id, feature, class, shap_value FROM explain.main.shap_values({_FEATURES}, "
+    "model := getvariable('m'), id := 'id') ORDER BY id, feature, class LIMIT 6"
+)
+SHAP_BASE_VALUE_SQL = (
+    "SELECT class, base_value FROM explain.main.shap_base_value(model := getvariable('m')) ORDER BY class"
+)
+FEATURE_IMPORTANCE_SQL = (
+    f"SELECT feature, rank, method FROM explain.main.feature_importance({_FEATURES}, "
+    "model := getvariable('m'), id := 'id') ORDER BY rank"
+)
+
+SHAP_VALUES_EXAMPLE = {
+    "description": "Explain each row's prediction feature by feature (model held in session VARIABLE m).",
+    "sql": [_SET_MODEL, SHAP_VALUES_SQL],
+}
+SHAP_BASE_VALUE_EXAMPLE = {
+    "description": (
+        "Read the model's expected (base) output — one row per class ('0' and '1') for this binary "
+        "RandomForest classifier."
+    ),
+    "sql": [_SET_MODEL, SHAP_BASE_VALUE_SQL],
+}
+FEATURE_IMPORTANCE_EXAMPLE = {
+    "description": "Rank features by their average SHAP magnitude across the dataset (model in session VARIABLE m).",
+    "sql": [_SET_MODEL, FEATURE_IMPORTANCE_SQL],
+}
+
+
+def as_example_query(example: dict[str, Any]) -> dict[str, str]:
+    """Render a ``[SET VARIABLE …, query]`` example as one ``vgi.example_queries`` entry.
+
+    A function's ``vgi.example_queries`` entry carries a single SQL string (only
+    ``vgi.executable_examples`` and the schema list accept a statement list), so
+    the steps are joined into one ``;``-separated script that runs as written.
+    """
+    return {"description": example["description"], "sql": "; ".join(example["sql"])}
+
+
+# Composed examples: queries that combine two of this worker's functions the way
+# an analyst would. Each is an ordered `[SET VARIABLE …, query]` pair against the
+# committed fixtures (a binary RandomForest whose TreeExplainer reports one output
+# per class, '0' and '1'), shown on the schema AND on the function that drives it.
+#
+# shap_values + shap_base_value: SHAP additivity — base value + sum(contributions)
+# reproduces predict_proba exactly for this tree model.
+RECONSTRUCT_PROBA_EXAMPLE = {
+    "description": (
+        "Reconstruct each row's predicted class-1 probability as the SHAP base value plus the sum of the "
+        "row's per-feature contributions (SHAP additivity), joining shap_values to shap_base_value on class, "
+        "and list the rows the model is least sure about (probability closest to 0.5)."
+    ),
+    "sql": [
+        _SET_MODEL,
+        "WITH contrib AS (SELECT id, class, sum(shap_value) AS total_shap "
+        f"FROM explain.main.shap_values({_FEATURES}, model := getvariable('m'), id := 'id') "
+        "GROUP BY id, class) "
+        "SELECT c.id, round(b.base_value, 4) AS base_value, round(c.total_shap, 4) AS total_shap, "
+        "round(b.base_value + c.total_shap, 4) AS predicted_proba "
+        "FROM contrib AS c JOIN explain.main.shap_base_value(model := getvariable('m')) AS b "
+        "ON c.class IS NOT DISTINCT FROM b.class WHERE c.class = '1' "
+        "ORDER BY round(abs(b.base_value + c.total_shap - 0.5), 4), c.id LIMIT 6",
+    ],
+}
+
+# feature_importance + shap_values: global vs local — how often is each feature
+# the single largest (|SHAP|) driver of a row's class-1 prediction?
+GLOBAL_VS_LOCAL_EXAMPLE = {
+    "description": (
+        "Compare each feature's global importance with the number of rows in which it is the dominant "
+        "(largest |SHAP|) driver of the class-1 prediction, joining feature_importance to per-row shap_values."
+    ),
+    "sql": [
+        _SET_MODEL,
+        "WITH dominant AS (SELECT id, arg_max(feature, abs(shap_value)) AS feature "
+        f"FROM explain.main.shap_values({_FEATURES}, model := getvariable('m'), id := 'id') "
+        "WHERE class = '1' GROUP BY id) "
+        "SELECT g.feature, g.rank, round(g.importance, 4) AS importance, count(d.id) AS rows_dominated "
+        f"FROM explain.main.feature_importance({_FEATURES}, model := getvariable('m'), id := 'id') AS g "
+        "LEFT JOIN dominant AS d ON d.feature = g.feature GROUP BY g.feature, g.rank, g.importance "
+        "ORDER BY g.rank",
+    ],
+}
+
+# shap_values + feature_importance + the raw features: drill from the globally
+# top-ranked feature into the rows where it pushes hardest toward class 1, with
+# that feature's raw input value alongside.
+TOP_FEATURE_DRILLDOWN_EXAMPLE = {
+    "description": (
+        "Drill into the globally top-ranked feature: the rows where its SHAP contribution pushes hardest "
+        "toward class 1, shown next to the feature's raw input value."
+    ),
+    "sql": [
+        _SET_MODEL,
+        "SELECT s.id, g.feature, round(f.signal, 4) AS signal, round(s.shap_value, 4) AS shap_value "
+        f"FROM explain.main.shap_values({_FEATURES}, model := getvariable('m'), id := 'id') AS s "
+        f"JOIN explain.main.feature_importance({_FEATURES}, model := getvariable('m'), id := 'id') AS g "
+        f"ON g.feature = s.feature AND g.rank = 1 JOIN {_FEATURES} AS f ON f.id = s.id "
+        "WHERE s.class = '1' ORDER BY s.shap_value DESC, s.id LIMIT 5",
+    ],
+}
 
 
 def _features_excluding(input_schema: pa.Schema, *exclude: str) -> list[str]:
@@ -174,10 +284,13 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
             "inline subquery; and an optional `id` column name to carry through (excluded from "
             "features). Features are aligned to the model's fitted columns **by name**, so input "
             "column order does not matter; the input must contain every feature the model expects.\n\n"
-            "**Outputs.** Columns `id`, `feature`, `class`, `shap_value`. For a multi-class "
-            "classifier with K>2 classes there is one row per class (the `class` column carries the "
-            "label); regression and binary classification collapse to a single output with "
-            "`class = NULL`.\n\n"
+            "**Outputs.** Columns `id`, `feature`, `class`, `shap_value`. When the explainer reports "
+            "one output per class there is one row per class (the `class` column carries the label): "
+            "every multi-class classifier, and binary classifiers explained on probabilities "
+            "(scikit-learn RandomForest / ExtraTrees / DecisionTree, the KernelExplainer fallback) — "
+            "those report both class '0' and class '1'. Regression and binary classifiers explained on "
+            "a single margin (XGBoost, GradientBoosting, HistGradientBoosting, LogisticRegression) "
+            "have one output with `class = NULL`.\n\n"
             "**Edge cases.** An empty input relation yields zero rows. A missing feature column is an "
             "input-alignment failure and raises a clear `input is missing feature column(s) …` error "
             "(listing the model's expected features and the input's columns); a separate `invalid "
@@ -200,7 +313,9 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
             "## Notes\n\n"
             "- Each row's contributions plus the model base value (`shap_base_value`) reconstruct "
             "the prediction (SHAP additivity).\n"
-            "- `class` is the label for multi-class classifiers, `NULL` for regression / binary.\n"
+            "- `class` is the class label when the explainer reports one output per class (every "
+            "multi-class model; binary RandomForest / ExtraTrees / DecisionTree), `NULL` for "
+            "single-output models (regression; binary XGBoost / GradientBoosting / logistic).\n"
             "- A missing feature column raises an `input is missing feature column(s) …` error; a "
             "malformed or untrusted model `BLOB` raises an `invalid model: …` error."
         )
@@ -235,7 +350,9 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
                         "name": "class",
                         "type": "VARCHAR",
                         "description": (
-                            "Class label for multi-class classifiers; NULL for regression / binary classification."
+                            "Class label when the explainer reports one output per class (multi-class, or binary "
+                            "RandomForest / ExtraTrees / DecisionTree); NULL for single-output models "
+                            "(regression; binary XGBoost / GradientBoosting / logistic)."
                         ),
                     },
                     {
@@ -249,19 +366,11 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
             # example calling this function. Two-statement list — a SET VARIABLE step that loads the
             # committed fixture model, then the query — run in order against one connection, so it
             # both demonstrates the object AND executes cleanly under --execute.
-            "vgi.executable_examples": json.dumps(
-                [
-                    {
-                        "description": (
-                            "Explain each row's prediction feature by feature (model held in session VARIABLE m)."
-                        ),
-                        "sql": [
-                            _SET_MODEL,
-                            f"SELECT id, feature, class, shap_value FROM explain.main.shap_values({_FEATURES}, "
-                            "model := getvariable('m'), id := 'id') ORDER BY id, feature, class LIMIT 6",
-                        ],
-                    }
-                ]
+            "vgi.executable_examples": json.dumps([SHAP_VALUES_EXAMPLE, RECONSTRUCT_PROBA_EXAMPLE]),
+            # Shown to agents (the first five per function): the canonical call, then the composed
+            # query this function drives.
+            "vgi.example_queries": json.dumps(
+                [as_example_query(e) for e in (SHAP_VALUES_EXAMPLE, RECONSTRUCT_PROBA_EXAMPLE)]
             ),
         }
 
@@ -296,7 +405,7 @@ class ShapValues(TableInOutGenerator[ShapValuesArgs]):
         else:
             fields.append(sfield("id", pa.int64(), "0-based input row index (no id column given).", nullable=False))
         fields.append(sfield("feature", pa.string(), "Feature name.", nullable=False))
-        fields.append(sfield("class", pa.string(), "Class label for the output (NULL for regression / binary)."))
+        fields.append(sfield("class", pa.string(), "Class label for the output (NULL for single-output models)."))
         fields.append(
             sfield(
                 "shap_value",
@@ -381,7 +490,7 @@ class ShapBaseValueArgs:
 
 _BASE_SCHEMA = pa.schema(
     [
-        sfield("class", pa.string(), "Class label for this base value (NULL for regression / binary)."),
+        sfield("class", pa.string(), "Class label for this base value (NULL for single-output models)."),
         sfield("base_value", pa.float64(), "Explainer expected value (the SHAP base value).", nullable=False),
     ]
 )
@@ -427,9 +536,11 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
             "`shap_values` whenever you present a per-row attribution.\n\n"
             "**Inputs.** Just the scalar `model` `BLOB` (produced by vgi-sklearn / vgi-xgboost) — no "
             "feature relation. It is typically a session VARIABLE or an inline subquery.\n\n"
-            "**Outputs.** Columns `class`, `base_value`. A multi-class classifier returns one row "
-            "per class (the `class` column carries the label); regression and binary classification "
-            "return a single row with `class = NULL`.\n\n"
+            "**Outputs.** Columns `class`, `base_value`. One row per class (the `class` column carries "
+            "the label) when the explainer reports one output per class — every multi-class model, and "
+            "binary RandomForest / ExtraTrees / DecisionTree classifiers (two rows, '0' and '1'); a "
+            "single row with `class = NULL` for regression and single-margin binary classifiers "
+            "(XGBoost, GradientBoosting, HistGradientBoosting, LogisticRegression).\n\n"
             "**Edge cases.** The model `BLOB` does not carry a background sample, so the base value is "
             "computed from a single zero feature vector — exact for tree / linear explainers, an "
             "approximation for models that require real background data. An invalid / untrusted "
@@ -445,8 +556,9 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
             "VARIABLE and read with `getvariable('m')` — pass it as `model := getvariable('m')`. A "
             "runnable end-to-end demonstration ships in this function's `vgi.executable_examples`.\n\n"
             "## Notes\n\n"
-            "- One row per class for multi-class classifiers; a single `class = NULL` row "
-            "otherwise.\n"
+            "- One row per class when the explainer reports one output per class (multi-class, and "
+            "binary RandomForest / ExtraTrees / DecisionTree); a single `class = NULL` row for "
+            "single-output models.\n"
             "- Computed from a zero background vector (exact for tree / linear explainers).\n"
             "- `base_value + sum(shap_value)` reconstructs a row's model output."
         )
@@ -464,7 +576,8 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
                         "name": "class",
                         "type": "VARCHAR",
                         "description": (
-                            "Class label for the base value; NULL for regression / binary classification (single row)."
+                            "Class label for the base value; NULL for single-output models (regression, "
+                            "single-margin binary classifiers) — one row."
                         ),
                     },
                     {
@@ -482,17 +595,11 @@ class ShapBaseValue(TableFunctionGenerator[ShapBaseValueArgs]):
             # fixture model, then the query — run in order against one connection, so it both
             # demonstrates the object AND executes cleanly under --execute. `expected_result` is
             # omitted deliberately (the linter only needs each to run).
-            "vgi.executable_examples": json.dumps(
-                [
-                    {
-                        "description": "The model's expected (base) output — one row per class for a classifier.",
-                        "sql": [
-                            _SET_MODEL,
-                            "SELECT class, base_value FROM explain.main.shap_base_value(model := getvariable('m')) "
-                            "ORDER BY class",
-                        ],
-                    },
-                ]
+            "vgi.executable_examples": json.dumps([SHAP_BASE_VALUE_EXAMPLE]),
+            # Shown to agents: the canonical call, then the additivity query that pairs the base
+            # value with shap_values (the reason to read a base value at all).
+            "vgi.example_queries": json.dumps(
+                [as_example_query(e) for e in (SHAP_BASE_VALUE_EXAMPLE, RECONSTRUCT_PROBA_EXAMPLE)]
             ),
         }
 
@@ -705,19 +812,13 @@ class FeatureImportance(SinkBuffer[FeatureImportanceArgs, DrainState]):
             # VGI511/VGI906: fully-qualified, projected, guaranteed-runnable example calling this
             # function. Two-statement list — a SET VARIABLE step that loads the committed fixture
             # model, then the query — run in order against one connection.
-            "vgi.executable_examples": json.dumps(
+            "vgi.executable_examples": json.dumps([FEATURE_IMPORTANCE_EXAMPLE]),
+            # Shown to agents: the canonical ranking, then the composed queries it drives (global vs
+            # local drivers, and drilling into the top-ranked feature's per-row contributions).
+            "vgi.example_queries": json.dumps(
                 [
-                    {
-                        "description": (
-                            "Rank features by their average SHAP magnitude across the dataset (model in "
-                            "session VARIABLE m)."
-                        ),
-                        "sql": [
-                            _SET_MODEL,
-                            f"SELECT feature, rank, method FROM explain.main.feature_importance({_FEATURES}, "
-                            "model := getvariable('m'), id := 'id') ORDER BY rank",
-                        ],
-                    }
+                    as_example_query(e)
+                    for e in (FEATURE_IMPORTANCE_EXAMPLE, GLOBAL_VS_LOCAL_EXAMPLE, TOP_FEATURE_DRILLDOWN_EXAMPLE)
                 ]
             ),
         }

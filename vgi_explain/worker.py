@@ -28,7 +28,16 @@ from vgi.catalog import Catalog, ReadOnlyCatalogInterface, Schema, View
 from vgi.catalog.catalog_interface import CatalogAttachResult, CatalogInfo
 
 from vgi_explain import __version__
-from vgi_explain.functions import EXPLAIN_FUNCTIONS, FIXTURES_URL
+from vgi_explain.functions import (
+    EXPLAIN_FUNCTIONS,
+    FEATURE_IMPORTANCE_EXAMPLE,
+    FIXTURES_URL,
+    GLOBAL_VS_LOCAL_EXAMPLE,
+    RECONSTRUCT_PROBA_EXAMPLE,
+    SHAP_BASE_VALUE_EXAMPLE,
+    SHAP_VALUES_EXAMPLE,
+    TOP_FEATURE_DRILLDOWN_EXAMPLE,
+)
 
 log = logging.getLogger(__name__)
 
@@ -126,16 +135,8 @@ _CATALOG_KEYWORDS = [
     "expected value",
 ]
 
-# Catalog-qualified SQL fragments selecting a committed model BLOB / feature
-# relation from the repo's test fixtures, read over HTTPS at a pinned tag so they
-# run without a checkout. The model BLOB cannot be inlined as a
-# scalar subquery (DuckDB forbids subquery arguments to table functions), so it is
-# held in a session VARIABLE and read with getvariable('m') — the idiomatic
-# pattern shown throughout the docs.
-_RF_MODEL = f"(SELECT model FROM read_parquet('{FIXTURES_URL}/models.parquet') WHERE name = 'rf_clf')"
-_FEATURES = f"(SELECT id, signal, noise_a, noise_b FROM read_parquet('{FIXTURES_URL}/features.parquet'))"
-
-_SET_M = f"SET VARIABLE m = {_RF_MODEL}"
+# The committed fixtures (model BLOB + feature matrix), read over HTTPS at a
+# pinned tag so the examples and agent tasks run without a checkout.
 _MODELS_URL = f"{FIXTURES_URL}/models.parquet"
 _FEATURES_URL = f"{FIXTURES_URL}/features.parquet"
 
@@ -144,31 +145,17 @@ _FEATURES_URL = f"{FIXTURES_URL}/features.parquet"
 # subquery arguments to table functions), so every example opens with the same
 # `SET VARIABLE m := …` step that loads the committed fixture model, then the query
 # — run in order against one connection, so each executes cleanly under --execute.
+# The SQL is defined once in functions.py (each function's own example lists use
+# the same objects): one canonical call per function, then the composed queries
+# that combine them.
 _SCHEMA_EXAMPLE_QUERIES = json.dumps(
     [
-        {
-            "description": "Read the model's baseline output (one row per class for a binary classifier).",
-            "sql": [
-                _SET_M,
-                "SELECT class, base_value FROM explain.main.shap_base_value(model := getvariable('m')) ORDER BY class",
-            ],
-        },
-        {
-            "description": "Explain each row's prediction feature by feature (long-format SHAP contributions).",
-            "sql": [
-                _SET_M,
-                f"SELECT id, feature, class, shap_value FROM explain.main.shap_values({_FEATURES}, "
-                "model := getvariable('m'), id := 'id') ORDER BY id, feature, class LIMIT 6",
-            ],
-        },
-        {
-            "description": "Rank the features by their dataset-wide (global) SHAP importance.",
-            "sql": [
-                _SET_M,
-                f"SELECT feature, rank, method FROM explain.main.feature_importance({_FEATURES}, "
-                "model := getvariable('m'), id := 'id') ORDER BY rank",
-            ],
-        },
+        SHAP_BASE_VALUE_EXAMPLE,
+        SHAP_VALUES_EXAMPLE,
+        FEATURE_IMPORTANCE_EXAMPLE,
+        RECONSTRUCT_PROBA_EXAMPLE,
+        GLOBAL_VS_LOCAL_EXAMPLE,
+        TOP_FEATURE_DRILLDOWN_EXAMPLE,
     ]
 )
 
@@ -262,6 +249,28 @@ _AGENT_TEST_TASKS_JSON = json.dumps(
                 "variable and compute global feature importance over the non-empty feature relation in "
                 f"'{_FEATURES_URL}' (columns id, signal, noise_a, noise_b). Return the single "
                 "method label the function reports for how importance was computed."
+            ),
+        },
+        {
+            "name": "reconstructed-probability-count",
+            "prompt": (
+                f"Load the binary-classifier model BLOB from '{_MODELS_URL}' (WHERE name = 'rf_clf') "
+                "into a session variable. Its SHAP explanation reports one output per class ('0' and '1'). "
+                "Using SHAP additivity (a row's model output for a class = that class's SHAP base value plus "
+                "the sum of the row's per-feature SHAP contributions for the same class), reconstruct the "
+                f"predicted probability of class '1' for every feature row in '{_FEATURES_URL}' "
+                "(columns id, signal, noise_a, noise_b). Return a single BIGINT column: the number of rows "
+                "whose reconstructed class-'1' probability is at least 0.5."
+            ),
+        },
+        {
+            "name": "second-feature-positive-rows",
+            "prompt": (
+                f"Load the model BLOB from '{_MODELS_URL}' (WHERE name = 'rf_clf') into a session "
+                "variable. Over the feature rows in "
+                f"'{_FEATURES_URL}' (columns id, signal, noise_a, noise_b), find the feature ranked "
+                "second by global SHAP importance, then count the rows in which that feature's per-row SHAP "
+                "contribution toward class '1' is positive. Return a single BIGINT column with that count."
             ),
         },
     ]

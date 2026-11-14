@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "repository": "Query-farm/vgi-explain",
+  "revision": "1a3b0b80c28aba31133bc1fd1096d204d11b1b75",
+  "captured_at": "2026-11-14T17:49:01.674163+00:00",
+  "default_schema": "main",
+  "scope": "all_public_functions_and_tables",
+  "complete": true,
+  "evidence": [
+    {
+      "path": "coverage/current-functions.json",
+      "sha256": "e6c80af510de3c07f116b6e586ad9b0480040565a24328657f157ad793776d3a",
+      "description": "Complete worker-filtered functions catalog export through actual published Haybarn"
+    },
+    {
+      "path": "coverage/current-tables.json",
+      "sha256": "b3cb81609d79d61e41b02faee4e89cdeb5651bd6ebe323dc5317ed2327bd1028",
+      "description": "Complete worker-filtered tables catalog export through actual published Haybarn"
+    },
+    {
+      "path": "coverage/current-views.json",
+      "sha256": "d4c475c4b958dfa83b3150490019677c4d189b0ecbe82977aadc3be9ebb556e0",
+      "description": "Complete worker-filtered views catalog export through actual published Haybarn"
+    }
+  ],
+  "objects": [
+    {
+      "schema": "main",
+      "name": "feature_importance",
+      "kind": "function",
+      "signatures": [
+        "feature_importance(TABLE, BLOB, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "shap_base_value",
+      "kind": "function",
+      "signatures": [
+        "shap_base_value(BLOB)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "shap_values",
+      "kind": "function",
+      "signatures": [
+        "shap_values(TABLE, BLOB, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "supported_models",
+      "kind": "table",
+      "signatures": [
+        "VIEW"
+      ],
+      "authentication": "none",
+      "access": "read"
+    }
+  ]
+}

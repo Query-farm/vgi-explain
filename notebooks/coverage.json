@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "catalogs": {
+    "released": {
+      "path": "coverage/catalog-released.json",
+      "sha256": "a35fa71d4131cf98882693e257b7fae9ea549428b40393c7b88c16611b8b64bb",
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T17:52:06.934931+00:00",
+        "catalog_sha256": "a35fa71d4131cf98882693e257b7fae9ea549428b40393c7b88c16611b8b64bb",
+        "notes": "Complete native duckdb_functions, duckdb_tables and duckdb_views exports through the actual attached worker, cross-checked against worker.py registration. Three functions and one reference view; view is a queryable logical table surface and is retained in denominator with VIEW signature. No authentication or write capabilities are registered or excluded. Public source and release names/signatures match; publication changes notebooks only."
+      }
+    },
+    "current": {
+      "path": "coverage/catalog-current.json",
+      "sha256": "8e3e7254572c5bc0e04319022838dc831a17d3e781bf6adcfb96b8ada9c0b50f",
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T17:52:06.934931+00:00",
+        "catalog_sha256": "8e3e7254572c5bc0e04319022838dc831a17d3e781bf6adcfb96b8ada9c0b50f",
+        "notes": "Complete native duckdb_functions, duckdb_tables and duckdb_views exports through the actual attached worker, cross-checked against worker.py registration. Three functions and one reference view; view is a queryable logical table surface and is retained in denominator with VIEW signature. No authentication or write capabilities are registered or excluded. Public source and release names/signatures match; publication changes notebooks only."
+      }
+    }
+  },
+  "notebooks": [
+    {
+      "path": "01_local_and_cohort_shap.ipynb",
+      "sha256": "09fe109aacf22920f4420450fa460edae7910633aebfcb84bd61e29572d14a4d",
+      "execution": {
+        "path": "coverage/run-01.json",
+        "sha256": "21386b7fe135a8d706b845c44ff150c55e57871d0e2ef400e41629fa3a8da6ce"
+      }
+    }
+  ],
+  "examples": [
+    {
+      "object": {
+        "schema": "main",
+        "name": "supported_models"
+      },
+      "notebook": "01_local_and_cohort_shap.ipynb",
+      "sql": [
+        {
+          "cell": "supported-family-fetch",
+          "reference": "ex.main.supported_models"
+        }
+      ],
+      "narrative_cells": [
+        "supported-family-question"
+      ],
+      "result_cells": [
+        "supported-family-display"
+      ],
+      "interpretation_cells": [
+        "supported-family-interpretation"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T17:52:06.934931+00:00",
+        "notebook_sha256": "09fe109aacf22920f4420450fa460edae7910633aebfcb84bd61e29572d14a4d",
+        "catalog_sha256": [
+          "a35fa71d4131cf98882693e257b7fae9ea549428b40393c7b88c16611b8b64bb",
+          "8e3e7254572c5bc0e04319022838dc831a17d3e781bf6adcfb96b8ada9c0b50f"
+        ],
+        "purpose": "Select a model family and explainer before training the example forest.",
+        "finding": "The three-family reference identifies RandomForest as TreeExplainer/exact. The notebook selects and asserts that row before training, while distinguishing exact attribution from model accuracy and from other families\u2019 reference assumptions."
+      }
+    },
+    {
+      "object": {
+        "schema": "main",
+        "name": "shap_values"
+      },
+      "notebook": "01_local_and_cohort_shap.ipynb",
+      "sql": [
+        {
+          "cell": "25b04459",
+          "reference": "ex.main.shap_values"
+        }
+      ],
+      "narrative_cells": [
+        "c7d70c4c"
+      ],
+      "result_cells": [
+        "3018037d"
+      ],
+      "interpretation_cells": [
+        "52520910"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T17:52:06.934931+00:00",
+        "notebook_sha256": "09fe109aacf22920f4420450fa460edae7910633aebfcb84bd61e29572d14a4d",
+        "catalog_sha256": [
+          "a35fa71d4131cf98882693e257b7fae9ea549428b40393c7b88c16611b8b64bb",
+          "8e3e7254572c5bc0e04319022838dc831a17d3e781bf6adcfb96b8ada9c0b50f"
+        ],
+        "purpose": "Explain each prediction with signed, name-aligned feature contributions.",
+        "finding": "Three contributions for each of 33 input IDs reconstruct independent worker predictions within 1e-8 minutes. Default local values are approximately +19.07,-3.90,-5.16 minutes; they are model accounting, not causal effects."
+      }
+    },
+    {
+      "object": {
+        "schema": "main",
+        "name": "shap_base_value"
+      },
+      "notebook": "01_local_and_cohort_shap.ipynb",
+      "sql": [
+        {
+          "cell": "25b04459",
+          "reference": "ex.main.shap_base_value"
+        }
+      ],
+      "narrative_cells": [
+        "c7d70c4c"
+      ],
+      "result_cells": [
+        "751ab20d"
+      ],
+      "interpretation_cells": [
+        "52520910"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T17:52:06.934931+00:00",
+        "notebook_sha256": "09fe109aacf22920f4420450fa460edae7910633aebfcb84bd61e29572d14a4d",
+        "catalog_sha256": [
+          "a35fa71d4131cf98882693e257b7fae9ea549428b40393c7b88c16611b8b64bb",
+          "8e3e7254572c5bc0e04319022838dc831a17d3e781bf6adcfb96b8ada9c0b50f"
+        ],
+        "purpose": "Establish the reference from which signed local attributions reconstruct a prediction.",
+        "finding": "One regression base with no class label is approximately 54.79 minutes. Adding local SHAP produces the 64.79-minute prediction. This is the tree-path reference, not a prediction for an average or zero-valued trip."
+      }
+    },
+    {
+      "object": {
+        "schema": "main",
+        "name": "feature_importance"
+      },
+      "notebook": "01_local_and_cohort_shap.ipynb",
+      "sql": [
+        {
+          "cell": "25b04459",
+          "reference": "ex.main.feature_importance"
+        }
+      ],
+      "narrative_cells": [
+        "f9bd16c6"
+      ],
+      "result_cells": [
+        "f08a72bc"
+      ],
+      "interpretation_cells": [
+        "ed1f2862"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T17:52:06.934931+00:00",
+        "notebook_sha256": "09fe109aacf22920f4420450fa460edae7910633aebfcb84bd61e29572d14a4d",
+        "catalog_sha256": [
+          "a35fa71d4131cf98882693e257b7fae9ea549428b40393c7b88c16611b8b64bb",
+          "8e3e7254572c5bc0e04319022838dc831a17d3e781bf6adcfb96b8ada9c0b50f"
+        ],
+        "purpose": "Contrast cohort mean-absolute SHAP with the magnitude of one trip\u2019s signed contributions.",
+        "finding": "Across 32 fixed synthetic rows distance ranks first at approximately 12.65 minutes, followed by rain4.12 and stops3.64. SQL recomputation from long SHAP matches all three worker importance rows; the cohort interpretation is kept distinct from local effects and forecasting quality."
+      }
+    }
+  ]
+}

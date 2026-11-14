@@ -1,0 +1,57 @@
+{
+  "query": "SELECT database_name,schema_name,function_name,function_type,parameters,parameter_types FROM duckdb_functions() WHERE database_name='explain' ORDER BY schema_name,function_name,parameter_types",
+  "columns": [
+    "database_name",
+    "schema_name",
+    "function_name",
+    "function_type",
+    "parameters",
+    "parameter_types"
+  ],
+  "rows": [
+    [
+      "explain",
+      "main",
+      "feature_importance",
+      "table",
+      [
+        "data",
+        "model",
+        "id"
+      ],
+      [
+        "TABLE",
+        "BLOB",
+        "VARCHAR"
+      ]
+    ],
+    [
+      "explain",
+      "main",
+      "shap_base_value",
+      "table",
+      [
+        "model"
+      ],
+      [
+        "BLOB"
+      ]
+    ],
+    [
+      "explain",
+      "main",
+      "shap_values",
+      "table",
+      [
+        "data",
+        "model",
+        "id"
+      ],
+      [
+        "TABLE",
+        "BLOB",
+        "VARCHAR"
+      ]
+    ]
+  ]
+}

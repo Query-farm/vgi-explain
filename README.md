@@ -197,3 +197,7 @@ Written by [Query.Farm](https://query.farm).
 
 Copyright 2026 Query Farm LLC - https://query.farm
 
+
+## Executed notebook
+
+[Explain a synthetic prediction and compare cohort importance](notebooks/README.md) using portable published scikit-learn and SHAP workers.

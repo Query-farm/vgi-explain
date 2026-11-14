@@ -1,0 +1,11 @@
+{
+  "repository": "Query-farm/vgi-explain",
+  "title": "SHAP Model Explanations",
+  "subtitle": "Explain scikit-learn and XGBoost model predictions with per-row SHAP values and global feature importance.",
+  "worker_release": "v0.4.0",
+  "provenance": "Exact catalog tags from immutable released Python source; public tag verified",
+  "source_url": "https://github.com/Query-farm/vgi-explain/blob/0356c146a8bfb04c94723ecce4878b4d685d2005/vgi_explain/worker.py#L271",
+  "source_sha256": "c515ccec41f54657ce01e8df62698775c281f3e8fcd7276172f88589101cc86b",
+  "source_path": "vgi_explain/worker.py",
+  "source_commit": "0356c146a8bfb04c94723ecce4878b4d685d2005"
+}

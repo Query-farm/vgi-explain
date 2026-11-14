@@ -115,6 +115,20 @@ WHERE s.class = '1' AND s.shap_value > 0;
 ----
 34
 
+# ---- composed: drill into the top-ranked feature, raw value looked up via UNPIVOT
+query ITRR
+SELECT s.id, s.feature, round(f.value, 4) AS feature_value, round(s.shap_value, 4) AS shap_value
+FROM explain.shap_values((SELECT * FROM feats), model := getvariable('c'), id := 'id') AS s
+JOIN explain.feature_importance((SELECT * FROM feats), model := getvariable('c'), id := 'id') AS g
+  ON g.feature = s.feature AND g.rank = 1
+JOIN (UNPIVOT (SELECT id, signal, noise_a, noise_b FROM feats) ON signal, noise_a, noise_b INTO NAME feature VALUE value) AS f
+  ON f.id = s.id AND f.feature = s.feature
+WHERE s.class = '1' ORDER BY s.shap_value DESC, s.id LIMIT 3;
+----
+53	signal	1.0066	0.4225
+40	signal	0.9874	0.4205
+54	signal	0.9871	0.4188
+
 # ---- robustness: a garbage model BLOB yields a clear error, never a crash ----
 statement ok
 SET VARIABLE bad = 'not-a-model'::BLOB;

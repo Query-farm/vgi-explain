@@ -166,7 +166,8 @@ GLOBAL_VS_LOCAL_EXAMPLE = {
 
 # shap_values + feature_importance + the raw features: drill from the globally
 # top-ranked feature into the rows where it pushes hardest toward class 1, with
-# that feature's raw input value alongside.
+# that feature's raw input value alongside (looked up by name via UNPIVOT, not a
+# hard-coded column).
 TOP_FEATURE_DRILLDOWN_EXAMPLE = {
     "description": (
         "Drill into the globally top-ranked feature: the rows where its SHAP contribution pushes hardest "
@@ -174,10 +175,14 @@ TOP_FEATURE_DRILLDOWN_EXAMPLE = {
     ),
     "sql": [
         _SET_MODEL,
-        "SELECT s.id, g.feature, round(f.signal, 4) AS signal, round(s.shap_value, 4) AS shap_value "
+        "SELECT s.id, s.feature, round(f.value, 4) AS feature_value, round(s.shap_value, 4) AS shap_value "
         f"FROM explain.main.shap_values({_FEATURES}, model := getvariable('m'), id := 'id') AS s "
         f"JOIN explain.main.feature_importance({_FEATURES}, model := getvariable('m'), id := 'id') AS g "
-        f"ON g.feature = s.feature AND g.rank = 1 JOIN {_FEATURES} AS f ON f.id = s.id "
+        "ON g.feature = s.feature AND g.rank = 1 "
+        # UNPIVOT the raw features to (id, feature, value) so the input value shown is the
+        # top-ranked feature's, whichever feature that turns out to be.
+        f"JOIN (UNPIVOT {_FEATURES} ON signal, noise_a, noise_b INTO NAME feature VALUE value) AS f "
+        "ON f.id = s.id AND f.feature = s.feature "
         "WHERE s.class = '1' ORDER BY s.shap_value DESC, s.id LIMIT 5",
     ],
 }

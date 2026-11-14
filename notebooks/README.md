@@ -35,8 +35,8 @@ together and repeat that verification when upgrading. Initial downloads and SHAP
 imports can take several minutes; no SQL engine build is needed.
 
 The local lock uses the `[runner]` extra of
-[vgi-example-notebooks v0.3.2](https://github.com/Query-farm/vgi-example-notebooks),
-which owns the [standard](https://github.com/Query-farm/vgi-example-notebooks/blob/v0.3.2/docs/standard.md),
+[vgi-example-notebooks v0.3.6](https://github.com/Query-farm/vgi-example-notebooks),
+which owns the [standard](https://github.com/Query-farm/vgi-example-notebooks/blob/v0.3.6/docs/standard.md),
 runner, branding, SVG presentation and coverage checks. The Colab setup uses only
 its base package. The shared runner saves successful defaults, requires a separate
 destination for parameter overrides, and publishes SVG image assets under `charts/`

@@ -1,0 +1,328 @@
+{
+  "schema_version": 1,
+  "status": "met",
+  "meets_target": true,
+  "catalogs": {
+    "released": {
+      "catalog_status": "verified",
+      "revision": "v0.4.0",
+      "catalog_sha256": "a35fa71d4131cf98882693e257b7fae9ea549428b40393c7b88c16611b8b64bb",
+      "collection_reconciled": true,
+      "denominator": 4,
+      "observed_objects": 4,
+      "required": 4,
+      "verified_count": 4,
+      "candidate_count": 0,
+      "fraction": 1.0,
+      "meets_target": true,
+      "exact_runtime_count": 4,
+      "runtime_revisions": [
+        "v0.4.0"
+      ],
+      "covered": [
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "feature_importance"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "shap_base_value"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "shap_values"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "supported_models"
+        }
+      ],
+      "uncovered": [],
+      "objects": [
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "feature_importance",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "feature_importance(TABLE, BLOB, VARCHAR)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "shap_base_value",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "shap_base_value(BLOB)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "shap_values",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "shap_values(TABLE, BLOB, VARCHAR)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "supported_models",
+          "kinds": [
+            "table"
+          ],
+          "signatures": [
+            "VIEW"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        }
+      ],
+      "issues": []
+    },
+    "current": {
+      "catalog_status": "verified",
+      "revision": "1a3b0b80c28aba31133bc1fd1096d204d11b1b75",
+      "catalog_sha256": "8e3e7254572c5bc0e04319022838dc831a17d3e781bf6adcfb96b8ada9c0b50f",
+      "collection_reconciled": true,
+      "denominator": 4,
+      "observed_objects": 4,
+      "required": 4,
+      "verified_count": 4,
+      "candidate_count": 0,
+      "fraction": 1.0,
+      "meets_target": true,
+      "exact_runtime_count": 0,
+      "runtime_revisions": [
+        "v0.4.0"
+      ],
+      "covered": [
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "feature_importance"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "shap_base_value"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "shap_values"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "supported_models"
+        }
+      ],
+      "uncovered": [],
+      "objects": [
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "feature_importance",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "feature_importance(TABLE, BLOB, VARCHAR)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "shap_base_value",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "shap_base_value(BLOB)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "shap_values",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "shap_values(TABLE, BLOB, VARCHAR)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "supported_models",
+          "kinds": [
+            "table"
+          ],
+          "signatures": [
+            "VIEW"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        }
+      ],
+      "issues": []
+    }
+  },
+  "interface_drift": {
+    "known": true,
+    "current_only": [],
+    "released_only": [],
+    "changed": []
+  },
+  "notebooks": {
+    "01_local_and_cohort_shap.ipynb": {
+      "verified": true,
+      "issues": []
+    }
+  },
+  "examples": [
+    {
+      "status": "verified",
+      "issues": [],
+      "verified_catalogs": [
+        "released",
+        "current"
+      ],
+      "object": {
+        "schema": [
+          "main"
+        ],
+        "name": "supported_models"
+      },
+      "notebook": "01_local_and_cohort_shap.ipynb",
+      "runtime_revision": "v0.4.0",
+      "runtime_catalog_sha256": "a35fa71d4131cf98882693e257b7fae9ea549428b40393c7b88c16611b8b64bb"
+    },
+    {
+      "status": "verified",
+      "issues": [],
+      "verified_catalogs": [
+        "released",
+        "current"
+      ],
+      "object": {
+        "schema": [
+          "main"
+        ],
+        "name": "shap_values"
+      },
+      "notebook": "01_local_and_cohort_shap.ipynb",
+      "runtime_revision": "v0.4.0",
+      "runtime_catalog_sha256": "a35fa71d4131cf98882693e257b7fae9ea549428b40393c7b88c16611b8b64bb"
+    },
+    {
+      "status": "verified",
+      "issues": [],
+      "verified_catalogs": [
+        "released",
+        "current"
+      ],
+      "object": {
+        "schema": [
+          "main"
+        ],
+        "name": "shap_base_value"
+      },
+      "notebook": "01_local_and_cohort_shap.ipynb",
+      "runtime_revision": "v0.4.0",
+      "runtime_catalog_sha256": "a35fa71d4131cf98882693e257b7fae9ea549428b40393c7b88c16611b8b64bb"
+    },
+    {
+      "status": "verified",
+      "issues": [],
+      "verified_catalogs": [
+        "released",
+        "current"
+      ],
+      "object": {
+        "schema": [
+          "main"
+        ],
+        "name": "feature_importance"
+      },
+      "notebook": "01_local_and_cohort_shap.ipynb",
+      "runtime_revision": "v0.4.0",
+      "runtime_catalog_sha256": "a35fa71d4131cf98882693e257b7fae9ea549428b40393c7b88c16611b8b64bb"
+    }
+  ],
+  "issues": []
+}

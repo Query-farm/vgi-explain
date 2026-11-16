@@ -20,7 +20,7 @@ without leaving your query.
 ```sql
 INSTALL vgi FROM community; LOAD vgi;
 ATTACH 'sklearn' (TYPE vgi, LOCATION 'vgi-sklearn');
-ATTACH 'explain' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-explain@v0.4.0 vgi-explain');
+ATTACH 'explain' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-explain@v0.4.1 vgi-explain');
 
 -- train a model with vgi-sklearn (or vgi-xgboost), keep the model BLOB it returns
 CREATE TABLE model AS
@@ -48,7 +48,7 @@ The worker isn't on PyPI; [uv](https://docs.astral.sh/uv/) runs it straight from
 INSTALL vgi FROM community;
 LOAD vgi;
 
-ATTACH 'explain' AS explain (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-explain@v0.4.0 vgi-explain');
+ATTACH 'explain' AS explain (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-explain@v0.4.1 vgi-explain');
 
 -- List every supported model family and the SHAP explainer chosen for it.
 SELECT model_family, shap_explainer, exactness FROM explain.main.supported_models ORDER BY model_family;

@@ -54,14 +54,14 @@ ATTACH 'explain' AS explain (TYPE vgi, LOCATION 'uvx --from git+https://github.c
 SELECT model_family, shap_explainer, exactness FROM explain.main.supported_models ORDER BY model_family;
 ```
 
-Change `@v0.4.0` to move to a newer release.
+Change `@v0.4.1` to move to a newer release.
 
 ### Other ways to run it
 
 - **Docker** (the image bundles the worker and its dependencies):
 
   ```sql
-  ATTACH 'explain' AS explain (TYPE vgi, LOCATION 'docker://ghcr.io/query-farm/vgi-explain:0.4.0');
+  ATTACH 'explain' AS explain (TYPE vgi, LOCATION 'docker://ghcr.io/query-farm/vgi-explain:0.4.1');
   ```
 
 - **From a local checkout** (`git clone https://github.com/Query-farm/vgi-explain`), point `LOCATION` at `uv run --project /path/to/vgi-explain vgi-explain`.

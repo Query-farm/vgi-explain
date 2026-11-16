@@ -13,13 +13,13 @@ classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Database",
     "Topic :: Database :: Database Engines/Servers",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Operating System :: OS Independent",
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "vgi-python[http]>=0.52.2,<0.53",
     "shap>=0.46",
@@ -27,9 +27,9 @@ dependencies = [
     "xgboost>=2.0",
     "skops>=0.11",
     "numpy",
-    # shap pulls numba (-> llvmlite); pin to versions with Python 3.13 wheels so
+    # shap pulls numba (-> llvmlite); pin to versions with Python 3.14 wheels so
     # the resolver does not fall back to ancient llvmlite 0.36 (which won't build
-    # on 3.13).
+    # on 3.14).
     "numba>=0.60",
     "llvmlite>=0.43",
 ]
@@ -97,7 +97,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "D"]
@@ -127,7 +127,7 @@ skip_checking_raises = true
 allow_init_docstring = true
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 strict = true
 warn_return_any = true
 warn_unused_ignores = true
